@@ -22,23 +22,6 @@ async function startSession() {
     }
 }
 
-// Odtwarzanie dźwięków
-function playStartSound() {
-    const audio = document.getElementById('startSound');
-    if (audio) {
-        audio.currentTime = 0;
-        audio.play().catch(err => console.log('Nie można odtworzyć dźwięku startu:', err));
-    }
-}
-
-function playEndSound() {
-    const audio = document.getElementById('endSound');
-    if (audio) {
-        audio.currentTime = 0;
-        audio.play().catch(err => console.log('Nie można odtworzyć dźwięku końca:', err));
-    }
-}
-
 // Zatrzymanie sesji
 async function stopSession() {
     const response = await fetch('/api/session/stop', { method: 'POST' });
@@ -253,11 +236,6 @@ ws.onmessage = function(event) {
 
         document.getElementById("phaseDisplay").innerText = "Faza: " + data.phase;
 
-        // Odtwarzaj dźwięk startu przy przejściu do FLIGHT
-        if (phaseText.toLowerCase().includes("przelot") && !currentPhase.includes("przelot")) {
-            playStartSound();
-        }
-
         // Formatowanie sekund na MM:SS
         const minutes = Math.floor(data.time_left / 60);
         const seconds = data.time_left % 60;
@@ -288,7 +266,6 @@ ws.onmessage = function(event) {
         fetchGroups();
     }
     else if (data.type === "flight_ended") {
-        playEndSound();
         fetchGroups();
         updatePilotsDisplay();
     }
