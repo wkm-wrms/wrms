@@ -62,6 +62,11 @@ async def serve_display():
     return FileResponse("static/display.html")
 
 
+@app.get("/admin")
+async def serve_display():
+    return FileResponse("static/session.html")
+
+
 @app.get("/favicon.ico")
 async def serve_favicon():
     return FileResponse("static/wkm.ico")
@@ -136,4 +141,5 @@ async def training_cycle_loop():
 if __name__ == "__main__":
     print("Serwer uruchomiony na http://localhost:8000")
     print("Panel uruchomiony na http://localhost:8000/display")
+    print("Panel admina http://localhost:8000/admin")
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
