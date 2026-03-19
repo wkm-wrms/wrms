@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="pl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Race Manager Pro - System Zarządzania Sesją</title>
+    <style>
+        :root {
+            --primary: #007bff;
+            --success: #28a745;
+            --danger: #dc3545;
+            --warning: #ffc107;
+            --dark: #343a40;
+            --light: #f8f9fa;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #eef2f7;
+            margin: 0;
+            padding: 20px;
+            color: var(--dark);
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+
+        /* Widoki */
+        .view {
+            display: none;
+        }
+
+        .view.active {
+            display: block;
+            animation: fadeIn 0.4s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Formularze i Przyciski */
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.2s;
+            font-size: 14px;
+            color: white;
+        }
+
+        .btn:hover {
+            filter: brightness(90%);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+        }
+
+        .btn-success {
+            background: var(--success);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+        }
+
+        .btn-warning {
+            background: var(--warning);
+            color: #212529;
+        }
+
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+
+        button {
+            padding: 8px 15px;
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        button.secondary {
+            background: #6c757d;
+        }
+
+
+        /* Grid i Listy */
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .list-container {
+            border: 1px solid #eee;
+            border-radius: 8px;
+            height: 400px;
+            overflow-y: auto;
+            background: var(--light);
+            padding: 10px;
+        }
+
+        .search-list-container {
+            border: 1px solid #eee;
+            border-radius: 8px;
+            height: 250px;
+            overflow-y: auto;
+            background: var(--light);
+            padding: 10px;
+        }
+
+        .item {
+            background: white;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid #e0e0e0;
+        }
+
+        /* Wizualizacja Grup */
+        .group-viz {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .group-box {
+            background: #e7f1ff;
+            border: 2px solid var(--primary);
+            border-radius: 10px;
+            padding: 15px;
+            min-width: 180px;
+            flex: 1;
+        }
+
+        .group-box h4 {
+            margin: 0 0 10px 0;
+            color: var(--primary);
+            text-align: center;
+            border-bottom: 1px solid #b3d7ff;
+            padding-bottom: 5px;
+        }
+
+        /* Timer i Status */
+        #timerDisplay {
+            font-size: 4rem;
+            font-weight: 800;
+            font-family: 'Courier New', monospace;
+            text-align: center;
+            margin: 20px 0;
+            color: var(--danger);
+            text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.05);
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .badge-prep {
+            background: #cfe2ff;
+            color: #084298;
+        }
+
+        .badge-live {
+            background: #d1e7dd;
+            color: #0f5132;
+        }
+
+        select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: white;
+            font-size: 14px;
+            color: var(--dark);
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+            /* Poprawa wyglądu w różnych przeglądarkach */
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            background-size: 1em;
+            padding-right: 32px;
+        }
+
+        select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+        }
+
+        select:hover {
+            border-color: #bbb;
+        }
+
+        /* Styl dla kontenera elementu listy, aby select i przycisk były w jednej linii */
+        .item {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .item span {
+            flex-grow: 1;
+            /* Nazwa pilota zajmie resztę miejsca */
+        }
+
+
+        .race-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            background: white;
+        }
+
+        .race-table th,
+        .race-table td {
+            padding: 12px 15px;
+            border: 1px solid #e0e0e0;
+            text-align: center;
+        }
+
+        .race-table thead th {
+            background-color: var(--dark);
+            color: white;
+            font-weight: 600;
+        }
+
+        .ch-head {
+            width: 20%;
+            font-family: monospace;
+        }
+
+        .group-number-cell {
+            background-color: var(--light);
+            font-weight: bold;
+            width: 10%;
+        }
+
+        .pilot-slot {
+            font-size: 0.9em;
+            min-height: 50px;
+        }
+
+        .vtx-tag {
+            display: inline-block;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-top: 4px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        /* Kolory dla typów VTX */
+        .vtx-analog {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+
+        .vtx-dji {
+            background: #cfe2ff;
+            color: #084298;
+            border: 1px solid #b6d4fe;
+        }
+
+        .vtx-hd0 {
+            background: #e2e3e5;
+            color: #41464b;
+            border: 1px solid #d6d8db;
+        }
+
+        .empty-slot {
+            color: #ccc;
+            font-style: italic;
+        }
+
+        /* Kolory dla typów VTX */
+        .vtx-analog {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+
+        .vtx-dji {
+            background: #cfe2ff;
+            color: #084298;
+            border: 1px solid #b6d4fe;
+        }
+
+        .vtx-hd0 {
+            background: #e2e3e5;
+            color: #41464b;
+            border: 1px solid #d6d8db;
+        }
+
+        .empty-slot {
+            color: #ccc;
+            font-style: italic;
+        }
+
+        .paddock-area {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            min-height: 80px;
+            padding: 15px;
+            border-radius: 8px;
+            align-items: center;
+            background-color: #fff;
+            border: 1px inset #eee;
+        }
+
+        .paddock-area .pilot-card {
+            min-width: 150px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .paddock-area[dragover] {
+            background-color: #e9ecef;
+        }
+
+        .pilot-card {
+            cursor: grab;
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            background: white;
+            user-select: none;
+            transition: transform 0.1s;
+        }
+
+        .pilot-card:active {
+            cursor: grabbing;
+            transform: scale(0.95);
+        }
+
+        .pilot-slot {
+            transition: background-color 0.2s;
+            min-width: 120px;
+            height: 60px;
+        }
+
+        /* Podświetlenie komórki, nad którą trzymamy pilota */
+        .pilot-slot[dragover] {
+            background-color: rgba(0, 123, 255, 0.1);
+            border: 2px dashed var(--primary);
+        }
+
+        /* Tło modala (overlay) */
+        .modal-overlay {
+            display: none;
+            /* Ukryty domyślnie */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+        }
+
+        /* Okno modala */
+        .modal-content {
+            position: relative;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 85%;
+            /* Szerokość 85% ekranu */
+            height: 85%;
+            /* Wysokość 85% ekranu */
+            background: #fff;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .modal-header {
+            padding: 15px 25px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 2rem;
+            cursor: pointer;
+            color: #666;
+        }
+
+        /* Styl dla iframe */
+        #groupFrame {
+            flex-grow: 1;
+            /* Zajmuje całą dostępną przestrzeń pod nagłówkiem */
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="card">
+            <div id="view-none" class="view">
+                <h2>Konfiguracja Nowej Sesji</h2>
+                <div class="form-group">
+                    <label>Nazwa wydarzenia</label>
+                    <input type="text" id="sessionName" placeholder="np. FPV Racing Truskaw 2026">
+                </div>
+                <div class="grid">
+                    <div class="form-group">
+                        <label>Czas lotu (sekundy)</label>
+                        <input type="number" id="flightTime" value="600">
+                    </div>
+                    <div class="form-group">
+                        <label>Czas prep (sekundy)</label>
+                        <input type="number" id="prepTime" value="120">
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="createSession()">Utwórz Sesję</button>
+            </div>
+
+            <div id="view-prep" class="view">
+                <div style="display: flex; justify-content: space-between;">
+                    <h2 id="prepTitle">Ładowanie sesji...</h2>
+                    <span class="status-badge badge-prep">Przygotowania</span>
+                </div>
+
+                <div class="grid">
+                    <section>
+                        <div>
+                            <input type="text" id="newPilotName" placeholder="Nick nowego pilota">
+                            <button onclick="createPilot()">Dodaj Nowego Pilota</button>
+                            <div>
+
+                                <label>Wyszukaj Pilota</label>
+                                <input type="text" id="pilotSearch" placeholder="Wpisz min. 2 znaki..."
+                                    oninput="searchPilots()">
+                                <div id="searchResultList" class="search-list-container" style="margin-top:10px"></div>
+                    </section>
+                    <section>
+                        <label>Piloci w sesji</label>
+                        <div id="activePilotsList" class="list-container" style="margin-top:10px"></div>
+                    </section>
+                </div>
+
+            </div>
+
+            <div style="margin-top: 30px; display: flex; gap: 10px;">
+
+                <button class="btn btn-primary" onclick="openGroupModal()"> Zarządzaj Grupami </button>
+                <button class="btn btn-warning" onclick="rebalanceGroups()">Rebalnsuj Grupy</button>
+                <button class="btn btn-success" onclick="startSession()">START WYŚCIGÓW</button>
+                <button class="btn btn-danger" onclick="terminateSession()">SKASUJ SESJĘ</button>
+            </div>
+            <section class="card" style="margin-top: 20px; overflow-x: auto;">
+                <h3>Harmonogram Grup i Kanałów</h3>
+                <table id="groupsTable" class="race-table">
+                    <thead>
+                        <tr>
+                            <th>Grupa</th>
+                            <th class="ch-head">R1 (5658)</th>
+                            <th class="ch-head">R3 (5732)</th>
+                            <th class="ch-head">R6 (5843)</th>
+                            <th class="ch-head">R7 (5880)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="groupsTableBody">
+                    </tbody>
+                </table>
+            </section>
+            <section class="card" style="margin-bottom: 20px; border: 2px dashed #ccc; background: #fafafa;">
+                <h3 style="margin-top: 0; color: #666;">Poczekalnia (Paddock)</h3>
+                <div id="paddock" class="pilot-slot paddock-area" ondragover="event.preventDefault()"
+                    ondrop="handleDropToPaddock(event)">
+                    <span class="empty-slot">Przeciągnij tutaj pilota, aby go odpiąć od grupy</span>
+                </div>
+            </section>
+        </div>
+
+        <div id="view-started" class="view">
+            <div id="timerDisplay">00:00</div>
+
+            <div class="grid">
+                <div class="card" style="margin:0; border:1px solid #eee;">
+                    <h3>Aktualny Bieg</h3>
+                    <div id="currentHeatDisplay">Grupa 1 - Oczekiwanie na start</div>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <button id="btnPause" class="btn btn-warning" onclick="pauseSession()">PAUZA</button>
+                    <button id="btnResume" class="btn btn-success" onclick="resumeSession()"
+                        style="display:none">WZNÓW</button>
+                    <button class="btn btn-primary" onclick="nextHeat()">NASTĘPNY BIEG</button>
+                    <button class="btn btn-danger" onclick="terminateSession()">ZAKOŃCZ SESJĘ</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+    <div id="groupModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Zarządzanie Grupami i Paddockiem</h2>
+                <button class="close-btn" onclick="closeGroupModal()">&times;</button>
+            </div>
+            <iframe id="groupFrame" src="" frameborder="0"></iframe>
+        </div>
+    </div>
+    <script>
+        let timerInt = null;
+        let timeRemaining = 0;
+        let isPaused = false;
+
+        // --- POMOCNICZE: Obsługa statusów i błędów ---
+        async function apiFetch(url, options = {}) {
+            try {
+                const response = await fetch(url, options);
+                const data = await response.json();
+                if (data.status !== "ok") throw new Error(data.message || "Błąd API: " + data.message);
+                id = data.id;
+                return data;
+            } catch (err) {
+                alert("Błąd: " + err.message);
+                console.error(err);
+                return null;
+            }
+        }
+
+
+        // --- 1. POST /api/pilot (Tworzenie) ---
+        async function createPilot() {
+            const nameInput = document.getElementById('newPilotName');
+            if (!nameInput.value) return alert("Podaj nick");
+
+            const res = await apiFetch('/api/pilot', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: nameInput.value })
+            });
+            updateUI;
+
+
+        }
+
+
+        // --- Ładowanie Stanu ---
+        async function updateUI() {
+            const res = await fetch('/api/session');
+            const data = await res.json();
+
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+
+            if (data.status === "ok" && data.session) {
+                const s = data.session;
+                if (s.current_phase === 'IDLE') {
+                    document.getElementById('view-prep').classList.add('active');
+                    document.getElementById('prepTitle').innerText = s.name;
+                    loadSessionData();
+                } else if (s.current_phase === 'PREP' || s.current_phase == 'PREP' || s.current_phase == 'PAUSED') {
+                    document.getElementById('view-started').classList.add('active');
+                    isPaused = s.is_paused;
+                    syncTimer(s.live_remaining_seconds, s.is_paused);
+                }
+            } else {
+                document.getElementById('view-none').classList.add('active');
+            }
+            loadGroupsPreview();
+        }
+
+        // --- Akcje API ---
+        async function createSession() {
+            const body = {
+                name: document.getElementById('sessionName').value,
+                flight_duration_sec: document.getElementById('flightTime').value,
+                prep_duration_sec: document.getElementById('prepTime').value
+            };
+            try {
+                await fetch('/api/session', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            } catch (err) {
+                alert("Błąd: " + err.message);
+                console.error(err);
+                return null;
+            }
+            updateUI();
+        }
+
+        async function startSession() {
+            try {
+                await fetch('/api/session/start', { method: 'POST' });
+            } catch (err) {
+                alert("Błąd: " + err.message);
+                console.error(err);
+                return null;
+            }
+            updateUI();
+        }
+
+        async function terminateSession() {
+            if (confirm("Czy na pewno chcesz zakończyć sesję?")) {
+                try {
+                    await fetch('/api/session/stop', { method: 'POST' });
+                } catch (err) {
+                    alert("Błąd: " + err.message);
+                    console.error(err);
+                    return null;
+                }
+                clearInterval(timerInt);
+                updateUI();
+            }
+        }
+
+        async function pauseSession() {
+            const res = await fetch('/api/session/pause', { method: 'POST' });
+            const data = await res.json();
+            syncTimer(data.remaining_seconds, true);
+        }
+
+        async function resumeSession() {
+            const res = await fetch('/api/session/resume', { method: 'POST' });
+            const data = await res.json();
+            syncTimer(data.remaining_seconds, false);
+        }
+
+        // --- Zarządzanie Pilotami ---
+        async function searchPilots() {
+            const q = document.getElementById('pilotSearch').value;
+            if (q.length < 2) return;
+            try {
+                const res = await fetch(`/api/pilot/search/${q}`);
+                const data = await res.json();
+                const list = document.getElementById('searchResultList');
+                list.innerHTML = data.pilots.map(p => `
+                <div class="item">
+                    ${p.name} 
+                    <select id="VTX_${p.id}">
+                        <option value="">--- Wybierz VTX ---</option>
+                        <option value="Analog">Analog</option>
+                        <option value="HD0">HD0</option>
+                        <option value="DJI">DJI</option>
+                    </select>
+                    <button class="btn btn-primary btn-sm" onclick="addPilot(${p.id})">+</button>
+                </div>
+                `).join('');
+
+            } catch (err) {
+                alert("Błąd: " + err.message);
+                console.error(err);
+                return null;
+            }
+        }
+
+        async function addPilot(id) {
+            vtx = document.getElementById("VTX_" + id).value
+            if (vtx == "") {
+                alert("Wybierz typ VTX");
+                return false;
+            }
+            try {
+                const res = await fetch(`/api/session/add_pilot`, { method: 'POST', body: JSON.stringify({ pilot_id: id, vtx: vtx }), headers: { 'Content-Type': 'application/json' } });
+                const data = await res.json();
+                if (data.status == "error") {
+                    alert("Błąd: " + data.message);
+                }
+            } catch (err) {
+                alert("Błąd: " + err.message);
+                console.error(err);
+                return null;
+            }
+            loadSessionData();
+            loadGroupsPreview();
+        }
+
+        async function removePilot(id) {
+            try {
+                await fetch(`/api/session/remove_pilot`, { method: 'POST', body: JSON.stringify({ pilot_id: id }), headers: { 'Content-Type': 'application/json' } });
+                loadSessionData();
+            } catch (err) {
+                alert("Błąd: " + err.message);
+                console.error(err);
+                return null;
+            }
+            loadGroupsPreview();
+        }
+
+        async function loadSessionData() {
+            // Tu wywołaj endpointy do pobierania listy pilotów w sesji i grup
+
+            try {
+                const resP = await fetch('/api/session');
+                const dataP = await resP.json();
+                document.getElementById('activePilotsList').innerHTML = dataP.session.active_pilots.map(p => `
+                <div class="item">
+                    ${p.pilot.name} (${p.vtx}) <button class="btn btn-danger btn-sm" onclick="removePilot(${p.pilot.id})">×</button>
+                </div>
+                `).join('');
+
+            } catch (err) {
+                alert("Błąd: " + err.message);
+                console.error(err);
+                return null;
+            }
+        }
+
+        // --- Timer ---
+        function syncTimer(seconds, paused) {
+            clearInterval(timerInt);
+            timeRemaining = Math.floor(seconds);
+            isPaused = paused;
+
+            updateTimerDisplay();
+
+            document.getElementById('btnPause').style.display = isPaused ? 'none' : 'block';
+            document.getElementById('btnResume').style.display = isPaused ? 'block' : 'none';
+
+            if (!isPaused && timeRemaining > 0) {
+                timerInt = setInterval(() => {
+                    timeRemaining--;
+                    if (timeRemaining <= 0) {
+                        clearInterval(timerInt);
+                        timeRemaining = 0;
+                    }
+                    updateTimerDisplay();
+                }, 1000);
+            }
+        }
+
+        function updateTimerDisplay() {
+            const m = Math.floor(timeRemaining / 60).toString().padStart(2, '0');
+            const s = (timeRemaining % 60).toString().padStart(2, '0');
+            document.getElementById('timerDisplay').innerText = `${m}:${s}`;
+        }
+
+        // Dane pomocnicze do śledzenia co przeciągamy
+        let draggedPilotId = null;
+        let sourceGroupSeq = null;
+        let sourceChannel = null;
+
+        async function loadGroupsPreview() {
+            const res = await fetch('/api/groups'); // Zakładam taki endpoint
+            const data = await res.json();
+            groups = data.groups;
+            renderGroupsTable(groups)
+        }
+
+        async function renderGroupsTable(groups) {
+            const tbody = document.getElementById('groupsTableBody');
+            tbody.innerHTML = '';
+            console.log("renderGroupsTable (" + groups + ")")
+            const allowedChannels = ["R1", "R3", "R6", "R7"];
+            if (!groups) return;
+            groups.forEach(group => {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td class="group-number-cell">Grupa ${group.group_sequence}</td>`;
+                console.log("loop", group);
+                allowedChannels.forEach(ch => {
+                    const pilot = group.channels[ch];
+                    const td = document.createElement('td');
+                    td.className = 'pilot-slot';
+                    // Dane identyfikacyjne dla miejsca upuszczenia
+                    td.dataset.groupSeq = group.group_sequence;
+                    td.dataset.channel = ch;
+
+                    // Obsługa upuszczania na komórkę
+                    td.ondragover = (e) => e.preventDefault();
+                    td.ondrop = (e) => handleDrop(e);
+
+                    if (pilot) {
+                        const pilotDiv = document.createElement('div');
+                        pilotDiv.draggable = true;
+                        pilotDiv.innerHTML = `<strong>${pilot.name}</strong><br><small>${pilot.vtx_type}</small>`;
+
+                        // Dane identyfikacyjne dla przeciąganego elementu
+                        pilotDiv.ondragstart = (e) => {
+                            draggedPilotId = pilot.id;
+                            sourceGroupSeq = group.group_sequence;
+                            sourceChannel = ch;
+                            e.dataTransfer.setData("text/plain", pilot.id);
+                            pilotDiv.style.opacity = "0.4";
+                        };
+
+                        pilotDiv.ondragend = () => pilotDiv.style.opacity = "1";
+
+                        td.appendChild(pilotDiv);
+                    } else {
+                        td.innerHTML = '<span class="empty-slot">wolny</span>';
+                    }
+                    row.appendChild(td);
+                });
+                tbody.innerHTML += row.outerHTML;
+            });
+        }
+
+        async function handleDrop(e) {
+            console.log("handle drop: " + e)
+            e.preventDefault();
+            const targetCell = e.target.closest('.pilot-slot');
+            if (!targetCell) return;
+
+            const targetGroupSeq = targetCell.dataset.groupSeq;
+            const targetChannel = targetCell.dataset.channel;
+
+            // Wysyłamy informację o zmianie do backendu
+            const res = await fetch('/api/session/move_pilot', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    pilot_id: draggedPilotId,
+                    from_group: sourceGroupSeq,
+                    from_channel: sourceChannel,
+                    to_group: targetGroupSeq,
+                    to_channel: targetChannel
+                })
+            });
+
+            const data = await res.json();
+            if (data.status === "ok") {
+                loadGroupsPreview(); // Odświeżamy tabelę po sukcesie
+            } else {
+                alert(data.message || "Nie można przenieść pilota na zajęte miejsce");
+            }
+        }
+        async function handleDropToPaddock(e) {
+            e.preventDefault();
+
+            // Jeśli pilot już był w poczekalni, nic nie rób
+            if (!sourceGroupSeq || sourceGroupSeq === 'paddock') return;
+
+            const res = await fetch('/api/session/unassign_pilot', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    pilot_id: draggedPilotId,
+                    from_group: sourceGroupSeq,
+                    from_channel: sourceChannel
+                })
+            });
+
+            if ((await res.json()).status === "ok") {
+                loadGroupsPreview();
+            }
+        }
+
+        // Zaktualizuj też funkcję renderującą, aby wypełniała Paddock
+        async function renderPaddock(unassignedPilots) {
+            const container = document.getElementById('paddock');
+            if (unassignedPilots.length === 0) {
+                container.innerHTML = '<span class="empty-slot">Wszyscy piloci są przypisani do grup</span>';
+                return;
+            }
+
+            container.innerHTML = unassignedPilots.map(pilot => {
+                const vtxClass = `vtx-${pilot.vtx_type.toLowerCase()}`;
+                return `
+            <div class="pilot-card ${vtxClass}" draggable="true" 
+                 ondragstart="draggedPilotId=${pilot.id}; sourceGroupSeq='paddock'; sourceChannel=null;">
+                <strong>${pilot.name}</strong><br>
+                <small>${pilot.vtx_type}</small>
+            </div>
+        `;
+            }).join('');
+        }
+
+        function openGroupModal() {
+            const modal = document.getElementById('groupModal');
+            const frame = document.getElementById('groupFrame');
+
+            // Ustawiamy źródło tylko jeśli jest puste (lub odświeżamy)
+            frame.src = "/static/groups.html";
+            modal.style.display = 'block';
+
+            // Blokada przewijania tła strony głównej
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeGroupModal() {
+            const modal = document.getElementById('groupModal');
+            modal.style.display = 'none';
+
+            // Przywrócenie przewijania tła
+            document.body.style.overflow = 'auto';
+
+            // OPCJONALNIE: Odśwież dane na stronie głównej po zamknięciu modala
+            // Jeśli w modalu zmieniłeś grupy, główna strona powinna to odczytać
+            if (typeof loadSessionData === "function") loadSessionData();
+            updateUI();
+        }
+
+        // Zamykanie po kliknięciu poza okno (w tło)
+        window.onclick = function (event) {
+            const modal = document.getElementById('groupModal');
+            if (event.target == modal) {
+                closeGroupModal();
+                updateUI();
+            }
+
+        }
+
+        async function rebalanceGroups() {
+            const res = await fetch('/api/groups/rebalance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            setTimeout(() => {
+
+                loadSessionData();
+                updateUI();
+            }, 500)
+
+        }
+        window.onload = updateUI;
+    </script>
+</body>
+
+</html>

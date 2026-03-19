@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="pl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zarządzanie Pilotami</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+            color: #333;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: auto;
+        }
+
+        section {
+            background: #f4f4f4;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            margin-top: 0;
+            border-bottom: 2px solid #ddd;
+            padding-bottom: 5px;
+        }
+
+        input {
+            padding: 8px;
+            width: 250px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button {
+            padding: 8px 15px;
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        button.secondary {
+            background: #6c757d;
+        }
+
+        .table-wrapper {
+            max-height: 280px;
+            /* Wysokość dla ok. 5 wierszy + nagłówek */
+            overflow-y: auto;
+            margin-top: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        #pilotsTable thead th {
+            position: sticky;
+            top: 0;
+            background: #eee;
+            z-index: 10;
+            border-bottom: 2px solid #ccc;
+        }
+
+        #pilotsTable {
+            margin-top: 0;
+            /* Resetujemy margines, bo wrapper go obsługuje */
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th,
+        td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            background: #eee;
+        }
+
+        .status-badge {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+        }
+
+        .ok {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        #pilotDetails {
+            background: #fff;
+            border: 1px solid #007bff;
+            display: none;
+        }
+
+        /* Tło modala (przyciemnienie) */
+        .modal-backdrop {
+            display: none;
+            /* Ukryty domyślnie */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Okienko modalne */
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 450px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            position: relative;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-20px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .close-button {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #888;
+        }
+
+        .close-button:hover {
+            color: #333;
+        }
+
+        .modal-body p {
+            margin: 10px 0;
+            font-size: 1.1em;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>System Zarządzania Pilotami</h1>
+
+        <section>
+        </section>
+
+        <section>
+            <h2>Piloci</h2>
+            <div>
+                <input type="text" id="newPilotName" placeholder="Imię i nazwisko pilota...">
+                <button onclick="createPilot()">Dodaj Nowego Pilota</button>
+                <div>
+                    <hr />
+                    <input type="text" id="searchQuery" placeholder="Szukaj pilota..." oninput="searchPilots()">
+                    <button class="secondary" onclick="loadAllPilots()">Pokaż wszystkich</button>
+
+                    <div class="table-wrapper">
+                        <table id="pilotsTable">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nazwa</th>
+                                    <th>Akcje</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            </tbody>
+                        </table>
+                    </div>
+        </section>
+    </div>
+    <div id="modalBackdrop" class="modal-backdrop" onclick="closeModal()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <span class="close-button" onclick="closeModal()">&times;</span>
+            <h2>Szczegóły Pilota</h2>
+            <hr>
+            <div class="modal-body">
+                <p><strong>ID:</strong> <span id="detId"></span></p>
+                <p><strong>Nazwa:</strong> <span id="detName"></span></p>
+                <p><strong>Kraj:</strong> <span id="detCountry"></span></p>
+            </div>
+            <div style="text-align: right; margin-top: 20px;">
+                <button class="secondary" onclick="closeModal()">Zamknij</button>
+            </div>
+        </div>
+    </div>
+
+
+    <div id="view-started" class="view">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2 id="runningSessionTitle">Sesja Aktywna</h2>
+            <div id="timerDisplay" style="font-size: 2em; font-weight: bold; font-family: monospace; color: #d9534f;">
+                00:00</div>
+        </div>
+
+        <div class="status-bar" id="sessionStatusBar"
+            style="padding: 10px; background: #e9ecef; border-radius: 5px; margin-bottom: 20px;">
+            Status: <strong id="currentStatusText">OCZEKIWANIE</strong>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <section>
+                <h3>Aktualny Bieg (Heat)</h3>
+                <div id="currentHeatInfo" class="group-box" style="width: 100%;">
+                </div>
+            </section>
+
+            <section>
+                <h3>Sterowanie</h3>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <button id="btnPause" class="btn" style="background: #ffc107;" onclick="togglePause()">WSTRZYMAJ
+                        (PAUZA)</button>
+                    <button id="btnResume" class="btn" style="background: #28a745; display: none;"
+                        onclick="togglePause()">WZNÓW CZAS</button>
+                    <button class="btn" style="background: #6c757d;" onclick="nextHeat()">NASTĘPNY BIEG</button>
+                    <hr>
+                    <button class="btn" style="background: #dc3545; color: white;" onclick="terminateSession()">ZAKOŃCZ
+                        SESJĘ</button>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        // --- POMOCNICZE: Obsługa statusów i błędów ---
+        async function apiFetch(url, options = {}) {
+            try {
+                const response = await fetch(url, options);
+                const data = await response.json();
+                if (data.status !== "ok") throw new Error(data.message || "Błąd API: " + data.message);
+                return data;
+            } catch (err) {
+                alert("Błąd: " + err.message);
+                console.error(err);
+                return null;
+            }
+        }
+
+        // --- 1. POST /api/pilot (Tworzenie) ---
+        async function createPilot() {
+            const nameInput = document.getElementById('newPilotName');
+            if (!nameInput.value) return alert("Podaj nazwę!");
+
+            const res = await apiFetch('/api/pilot', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: nameInput.value })
+            });
+
+            if (res) {
+                nameInput.value = '';
+                loadAllPilots(); // Odśwież listę
+            }
+        }
+
+        // --- 2. GET /api/pilot (Lista wszystkich) ---
+        async function loadAllPilots() {
+            const res = await apiFetch('/api/pilot');
+            if (res) renderTable(res.pilots);
+        }
+
+        // --- 3. GET /api/pilot/{id} (Szczegóły) ---
+        async function viewPilot(id) {
+            const res = await apiFetch(`/api/pilot/${id}`);
+            if (res && res.status === "ok") {
+                const p = res.pilot;
+                console.log(p);
+                // Wypełnienie danych
+                document.getElementById('detId').innerText = p.id;
+                document.getElementById('detName').innerText = p.name;
+                document.getElementById('detCountry').innerText = p.country || "Brak danych";
+
+                // Pokaż modal
+                document.getElementById('modalBackdrop').style.display = 'flex';
+            }
+        }
+
+        // --- Zamykanie Modala ---
+        function closeModal() {
+            document.getElementById('modalBackdrop').style.display = 'none';
+        }
+
+        // Opcjonalnie: Zamykanie klawiszem ESC
+        window.addEventListener('keydown', (e) => {
+            if (e.key === "Escape") closeModal();
+        });
+
+        // --- 4. GET /api/pilot/search/{query} (Wyszukiwanie) ---
+        async function searchPilots() {
+            const query = document.getElementById('searchQuery').value;
+            if (query.length < 2) {
+                if (query.length === 0) loadAllPilots();
+                return;
+            }
+
+            const res = await apiFetch(`/api/pilot/search/${encodeURIComponent(query)}`);
+            if (res) renderTable(res.pilots);
+        }
+
+        // --- RENDEROWANIE TABELI ---
+        function renderTable(pilots) {
+            const tbody = document.querySelector('#pilotsTable tbody');
+            tbody.innerHTML = '';
+
+            pilots.forEach(p => {
+                const row = `
+                <tr>
+                    <td>${p.id}</td>
+                    <td>${p.name}</td>
+                    <td>
+                        <button class="secondary" onclick="viewPilot(${p.id})">Szczegóły</button>
+                        <button class="secondary" onclick="activatePilot(${p.id})">Aktywuj</button>
+                    </td>
+                </tr>
+            `;
+                tbody.innerHTML += row;
+            });
+        }
+        function activatePilot(id) {
+            alert("Funkcja aktywacji pilota o ID: " + id + " (do zaimplementowania)");
+        }
+        // Załaduj dane na starcie
+        window.onload = loadAllPilots;
+    </script>
+
+</body>
+
+</html>

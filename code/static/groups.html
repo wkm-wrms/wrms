@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="pl">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Race Manager - Grupy i Paddock</title>
+    <style>
+        :root {
+            --primary: #007bff;
+            --success: #28a745;
+            --dark: #343a40;
+            --light: #f8f9fa;
+        }
+
+        body {
+            font-family: sans-serif;
+            background: #eef2f7;
+            padding: 20px;
+            color: var(--dark);
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        /* PADDOCK */
+        .paddock-section {
+            border: 2px dashed #bbb;
+            background: #fdfdfd;
+        }
+
+        .paddock-area {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            min-height: 80px;
+            padding: 15px;
+            border-radius: 8px;
+            background: white;
+            border: 1px inset #eee;
+        }
+
+        /* TABELA GRUP */
+        .race-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        .race-table th,
+        .race-table td {
+            border: 1px solid #dee2e6;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .race-table thead th {
+            background: var(--dark);
+            color: white;
+        }
+
+        /* SLOTY I KARTY PILOTÓW */
+        .pilot-slot {
+            width: 180px;
+            height: 70px;
+            transition: background 0.2s;
+            position: relative;
+        }
+
+        .pilot-slot.drag-over {
+            background: rgba(0, 123, 255, 0.15);
+            border: 2px dashed var(--primary);
+        }
+
+        .pilot-card {
+            cursor: grab;
+            padding: 8px;
+            border-radius: 6px;
+            background: white;
+            border: 1px solid #ccc;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            user-select: none;
+            transition: opacity 0.2s;
+        }
+
+        .pilot-card:active {
+            cursor: grabbing;
+        }
+
+        /* VTX COLORS */
+        .vtx-analog {
+            border-left: 5px solid #ffc107;
+        }
+
+        .vtx-dji {
+            border-left: 5px solid #007bff;
+        }
+
+        .vtx-hd0 {
+            border-left: 5px solid #6c757d;
+        }
+
+        .empty-slot {
+            color: #aaa;
+            font-size: 0.8em;
+            font-style: italic;
+        }
+
+        h3 {
+            margin-top: 0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <section class="card paddock-section">
+            <h3>Poczekalnia (Paddock)</h3>
+            <div id="paddock" class="paddock-area pilot-slot" data-group-seq="paddock"
+                ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+            </div>
+        </section>
+
+        <section class="card">
+            <h3>Harmonogram Grup</h3>
+            <table class="race-table">
+                <thead>
+                    <tr>
+                        <th>Grupa</th>
+                        <th>R1 (5658)</th>
+                        <th>R3 (5732)</th>
+                        <th>R6 (5843)</th>
+                        <th>R7 (5880)</th>
+                    </tr>
+                </thead>
+                <tbody id="groupsTableBody">
+                </tbody>
+            </table>
+        </section>
+    </div>
+
+    <script>
+        // Dane globalne dla Drag & Drop
+        let draggedPilotId = null;
+        let sourceGroup = null;
+        let sourceChannel = null;
+
+        // --- FUNKCJE OBSŁUGI DRAG & DROP ---
+
+        function handleDragStart(e, pilotId, groupSeq, channel) {
+            draggedPilotId = pilotId;
+            sourceGroup = groupSeq;
+            sourceChannel = channel;
+            e.dataTransfer.setData("text/plain", pilotId);
+            e.target.style.opacity = "0.4";
+        }
+
+        function handleDragEnd(e) {
+            e.target.style.opacity = "1";
+            // Czyścimy podświetlenia po zakończeniu
+            document.querySelectorAll('.pilot-slot').forEach(s => s.classList.remove('drag-over'));
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('drag-over');
+        }
+
+        function handleDragLeave(e) {
+            e.currentTarget.classList.remove('drag-over');
+        }
+
+        async function handleDrop(e) {
+            e.preventDefault();
+            const targetSlot = e.currentTarget;
+            targetSlot.classList.remove('drag-over');
+
+            const targetGroup = targetSlot.dataset.groupSeq;
+            const targetChannel = targetSlot.dataset.channel || null;
+
+            // Jeśli upuszczono w to samo miejsce - ignoruj
+            if (sourceGroup === targetGroup && sourceChannel === targetChannel) return;
+
+            console.log(`Przenoszenie pilota ${draggedPilotId} z ${sourceGroup}:${sourceChannel} do ${targetGroup}:${targetChannel}`);
+
+            // Wywołanie API
+            try {
+                const res = await fetch('/api/groups/move_pilot', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        pilot_id: draggedPilotId,
+                        from_group: sourceGroup,
+                        from_channel: sourceChannel,
+                        to_group: targetGroup,
+                        to_channel: targetChannel
+                    })
+                });
+
+                const data = await res.json();
+                if (data.status === "ok") {
+                    loadSessionData(); // Odśwież widok
+                } else {
+                    alert(data.message || "Błąd przenoszenia");
+                }
+            } catch (err) {
+                console.error("Błąd sieci:", err);
+            }
+        }
+
+        // --- RENDEROWANIE INTERFEJSU ---
+
+        async function loadSessionData() {
+            // Symulacja pobrania danych (zastąp fetchem do Twojego API)
+            const res = await fetch('/api/session');
+            const data = await res.json();
+
+            renderPaddock(data.unassigned_pilots);
+            renderGroups(data.session.groups);
+        }
+
+        function renderPaddock(pilots) {
+            if (pilots) {
+                const container = document.getElementById('paddock');
+                container.innerHTML = pilots.length ? '' : '<span class="empty-slot">Przeciągnij tutaj pilota, aby go odpiąć</span>';
+
+                pilots.forEach(p => {
+                    container.appendChild(createPilotCard(p, 'paddock', null));
+                });
+            }
+        }
+
+        function renderGroups(groups) {
+            const tbody = document.getElementById('groupsTableBody');
+            tbody.innerHTML = '';
+            const channels = ["R1", "R3", "R6", "R7"];
+
+            groups.forEach(g => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td class="group-number-cell">G${g.group_sequence}</td>`;
+
+                channels.forEach(ch => {
+                    const td = document.createElement('td');
+                    td.className = 'pilot-slot';
+                    td.dataset.groupSeq = g.group_sequence;
+                    td.dataset.channel = ch;
+
+                    // Eventy dla slotu
+                    td.ondragover = handleDragOver;
+                    td.ondragleave = handleDragLeave;
+                    td.ondrop = handleDrop;
+
+                    const pilot = g.channels[ch];
+                    if (pilot) {
+                        td.appendChild(createPilotCard(pilot, g.group_sequence, ch));
+                    } else {
+                        td.innerHTML = '<span class="empty-slot">wolny</span>';
+                    }
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+        }
+
+        function createPilotCard(pilot, groupSeq, channel) {
+            const div = document.createElement('div');
+            div.className = `pilot-card`;
+            div.draggable = true;
+            div.innerHTML = `<strong>${pilot.name}</strong><br><small>${pilot.vtx_type}</small>`;
+
+            div.ondragstart = (e) => handleDragStart(e, pilot.id, groupSeq, channel);
+            div.ondragend = handleDragEnd;
+
+            return div;
+        }
+
+        // Start
+        window.onload = loadSessionData;
+    </script>
+
+</body>
+
+</html>

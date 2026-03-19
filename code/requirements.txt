@@ -1,3 +1,5 @@
 fastapi
 uvicorn
 uvicorn[standard]
+a2wsgi
+sse_starlette

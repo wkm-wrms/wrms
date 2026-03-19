@@ -1,4 +1,3 @@
-let cachedGroups = { groups: [], current_index: 0 };
 
 // Odtwarzanie dźwięków
 function playStartSound() {
@@ -77,7 +76,7 @@ async function fetchGroups() {
     cachedGroups = data;
     updatePilotsDisplay();
 }
-
+/*
 // Konfiguracja WebSocketu
 const wsProtocol = window.location.protocol === "https:" ? "wss://" : "ws://";
 const ws = new WebSocket(wsProtocol + window.location.host + "/ws");
@@ -129,4 +128,4 @@ ws.onopen = function() {
     fetchGroups();
     updatePilotsDisplay();
 };
-
+*/

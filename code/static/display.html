@@ -1,11 +1,18 @@
 <!DOCTYPE html>
 <html lang="pl">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WKM Racing - Wyświetlacz Timera</title>
+    <link rel="icon" href="/static/wkm.ico" type="image/x-icon">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
             font-family: Arial, sans-serif;
             background-color: #222;
@@ -58,7 +65,8 @@
             flex-wrap: wrap;
         }
 
-        #currentPilots, #nextPilots {
+        #currentPilots,
+        #nextPilots {
             text-align: left;
             min-width: 300px;
         }
@@ -69,18 +77,21 @@
             padding-left: 60px;
         }
 
-        #currentPilots div, #nextPilots div {
+        #currentPilots div,
+        #nextPilots div {
             margin: 8px 0;
             line-height: 1.4;
         }
 
-        #currentPilots strong, #nextPilots strong {
+        #currentPilots strong,
+        #nextPilots strong {
             font-size: 1.3em;
             display: block;
             margin-bottom: 10px;
         }
     </style>
 </head>
+
 <body>
 
     <!-- Audio elements dla dźwięków -->
@@ -101,7 +112,8 @@
         </div>
     </div>
 
+    <script src="/static/app.js"></script>
     <script src="/static/display.js"></script>
 </body>
-</html>
 
+</html>

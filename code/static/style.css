@@ -35,10 +35,29 @@ body {
     font-size: large;
 }
 
-.timer-block #timer {
-    font-size: 80px;
+.timer-block #timerDisplay {
+    font-size: 10em;
     font-weight: bold;
     text-align: center;
+    flex: 1;
+}
+
+.phase-block {
+    position: absolute;
+    width: 100%;
+    top: 15%;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: right;
+    font-size: large;
+}
+
+.phase-block #phaseDisplay {
+    font-size: 2em;
+    font-weight: bold;
+    text-align: right;
+    margin-right: 2em;
     flex: 1;
 }
 
@@ -50,19 +69,45 @@ body {
     flex-direction: row;
     justify-content: space-between;
     align-items: center;
-    font-size: 48px;
-
 }
 
-.message-block #message {
-    font-size: 48px;
+.message-block #messageText {
+    font-size: 4em;
     font-weight: bold;
     text-align: center;
     flex: 1;
     background-color: red;
     padding: 10px;
-    /*visibility: hidden;*/
-    visibility: visible;
+    visibility: hidden;
+
+}
+
+.current-group-block {
+    position: absolute;
+    width: 100%;
+    top: 35%;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: left;
+    vertical-align: middle;
+}
+
+.current-group-block .current-group-text {
+    font-size: 1.5em;
+    font-weight: bold;
+    text-align: right;
+    margin-right: 4em;
+    flex: 1;
+    vertical-align: middle;
+}
+
+.current-group-block #currentGroupDisplay {
+    font-size: 2em;
+    font-weight: bold;
+    text-align: left;
+    flex: 1;
+    vertical-align: middle;
 }
 
 .pilot-block {

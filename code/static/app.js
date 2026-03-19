@@ -1,179 +1,52 @@
-// Rozpoczęcie sesji
-async function startSession() {
-    const name = document.getElementById('sessionName').value;
-    const flight = parseInt(document.getElementById('flightDuration').value);
-    const prep = parseInt(document.getElementById('prepDuration').value);
-
-    const response = await fetch('/api/session/start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            name: name,
-            flight_duration_sec: flight,
-            prep_duration_sec: prep
-        })
-    });
-
-    const result = await response.json();
-    if(response.ok) {
-        alert(result.message);
-    } else {
-        alert("Błąd: " + result.detail);
-    }
-}
-
-// Zatrzymanie sesji
-async function stopSession() {
-    const response = await fetch('/api/session/stop', { method: 'POST' });
-    const result = await response.json();
-    alert(result.message);
-}
-
-// Dodawanie pilota i wymuszanie rebalansingu
-async function addPilot() {
-    const name = document.getElementById('pilotName').value.trim();
-    const system = document.getElementById('pilotSystem').value;
-    const isDigital = (system === 'digital');
-
-    if (!name) {
-        alert("Podaj nick/imię pilota.");
-        return;
-    }
-
-    const response = await fetch('/api/pilots', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            name: name,
-            is_active: true,
-            digital: isDigital
-        })
-    });
-
-    const result = await response.json();
-    if (response.ok) {
-        fetchGroups();
-        document.getElementById('pilotName').value = "";
-    } else {
-        alert("Błąd: " + result.detail);
-    }
-}
-
-function setPauseButton(paused) {
-    const btn = document.getElementById('pauseResumeBtn');
-    if (!btn) return;
-    btn.innerText = paused ? 'Wznów' : 'Pauza';
-    btn.style.backgroundColor = paused ? '#28a745' : '#6c757d';
-}
-async function togglePauseSession() {
-    const phaseText = (document.getElementById("phaseDisplay").innerText || "").toLowerCase();
-    const isPaused = phaseText.includes("pauza");
-
-    const endpoint = isPaused ? '/api/cycle/resume' : '/api/cycle/pause';
-    const response = await fetch(endpoint, { method: 'POST' });
-    const result = await response.json();
-
-    if (!response.ok) {
-        alert("Błąd: " + (result.detail || "Nie udało się zmienić stanu pauzy."));
-        return;
-    }
-
-    if (isPaused) {
-        setPauseButton(false);
-    } else {
-        setPauseButton(true);
-        document.getElementById("phaseDisplay").innerText = "Faza: Oczekiwanie / Pauza";
-    }
-}
-
-async function skipPhase() {
-    const response = await fetch('/api/cycle/skip', { method: 'POST' });
-    const result = await response.json();
-
-    if (response.ok) {
-        alert(result.message);
-        fetchGroups();
-    } else {
-        alert("Błąd: " + (result.detail || "Nie udało się pominąć etapu."));
-    }
-}
-
-
-
-async function removePilot(pilotId) {
-    const response = await fetch(`/api/pilots/${pilotId}`, { method: 'DELETE' });
-    const result = await response.json();
-
-    if (response.ok) {
-        fetchGroups();
-    } else {
-        alert("Błąd: " + (result.detail || "Nie udało się usunąć pilota."));
-    }
-}
 
 let lastGroupsFetchTs = 0;
 let cachedGroups = { groups: [], current_index: 0 };
 
-function refreshGroupsThrottled(minIntervalMs = 1200) {
-    const now = Date.now();
-    if (now - lastGroupsFetchTs >= minIntervalMs) {
-        lastGroupsFetchTs = now;
-        fetchGroups();
-    }
-}
+fetchGroups(); // Pobierz grupy przy pierwszym uruchomieniu
 
 function updatePilotsDisplay() {
     const { groups, current_index } = cachedGroups;
+    const next_index = (current_index + 1) % groups.length;
 
-    const currentPilotsDiv = document.getElementById('currentPilots');
-    const nextPilotsDiv = document.getElementById('nextPilots');
+    console.log("Aktualizacja wyświetlania pilotów. Bieżące grupy:", groups, "Bieżący indeks:", current_index, "cachedGroups:", cachedGroups);
+    document.getElementById('pilotR1').innerText = '';
+    document.getElementById('pilotR3').innerText = '';
+    document.getElementById('pilotR6').innerText = '';
+    document.getElementById('pilotR7').innerText = '';
+    document.getElementById('nextpilotR1').innerText = '';
+    document.getElementById('nextpilotR3').innerText = '';
+    document.getElementById('nextpilotR6').innerText = '';
+    document.getElementById('nextpilotR7').innerText = '';
 
     if (!groups || groups.length === 0) {
-        currentPilotsDiv.innerHTML = '';
-        nextPilotsDiv.innerHTML = '';
         return;
     }
 
     // Bieżąca grupa
-    const currentGroup = groups[current_index];
-    let currentHtml = `<div><strong>🟢 Grupa ${currentGroup.id}</strong></div>`;
+    pilotsbyId = {};
+    currentchannels = {};
+    nextchannels = {};
 
-    const sortedCurrentPilots = [...currentGroup.pilots].sort((a, b) => {
-        const channelA = currentGroup.channels[a.id] || '';
-        const channelB = currentGroup.channels[b.id] || '';
-        return channelA.localeCompare(channelB, 'pl', { numeric: true, sensitivity: 'base' });
+    groups[current_index].pilots.forEach(pilot => {
+        pilotsbyId[pilot.id] = pilot;
+        channel = groups[current_index].channels[pilot.id];
+        currentchannels[channel] = pilot;
+    });
+    groups[next_index].pilots.forEach(pilot => {
+        pilotsbyId[pilot.id] = pilot;
+        channel = groups[next_index].channels[pilot.id];
+        nextchannels[channel] = pilot;
     });
 
-    sortedCurrentPilots.forEach(pilot => {
-        const channel = currentGroup.channels[pilot.id];
-        const sysIcon = pilot.digital ? '📺' : '📻';
-        currentHtml += `<div>${sysIcon} ${pilot.name} (${channel})</div>`;
-    });
+    document.getElementById('pilotR1').innerText = currentchannels["R1"] ? currentchannels["R1"]["name"] : '';
+    document.getElementById('pilotR3').innerText = currentchannels["R3"] ? currentchannels["R3"]["name"] : '';
+    document.getElementById('pilotR6').innerText = currentchannels["R6"] ? currentchannels["R6"]["name"] : '';
+    document.getElementById('pilotR7').innerText = currentchannels["R7"] ? currentchannels["R7"]["name"] : '';
+    document.getElementById('nextpilotR1').innerText = nextchannels["R1"] ? nextchannels["R1"]["name"] : '';
+    document.getElementById('nextpilotR3').innerText = nextchannels["R3"] ? nextchannels["R3"]["name"] : '';
+    document.getElementById('nextpilotR6').innerText = nextchannels["R6"] ? nextchannels["R6"]["name"] : '';
+    document.getElementById('nextpilotR7').innerText = nextchannels["R7"] ? nextchannels["R7"]["name"] : '';
 
-    currentPilotsDiv.innerHTML = currentHtml;
-
-    // Następna grupa (jeśli istnieje)
-    const nextIndex = (current_index + 1) % groups.length;
-    if (nextIndex !== current_index) {
-        const nextGroup = groups[nextIndex];
-        let nextHtml = `<div><strong>⏭️ Grupa ${nextGroup.id}</strong></div>`;
-
-        const sortedNextPilots = [...nextGroup.pilots].sort((a, b) => {
-            const channelA = nextGroup.channels[a.id] || '';
-            const channelB = nextGroup.channels[b.id] || '';
-            return channelA.localeCompare(channelB, 'pl', { numeric: true, sensitivity: 'base' });
-        });
-
-        sortedNextPilots.forEach(pilot => {
-            const channel = nextGroup.channels[pilot.id];
-            const sysIcon = pilot.digital ? '📺' : '📻';
-            nextHtml += `<div>${sysIcon} ${pilot.name} (${channel})</div>`;
-        });
-
-        nextPilotsDiv.innerHTML = nextHtml;
-    } else {
-        nextPilotsDiv.innerHTML = '';
-    }
 }
 
 // Pobieranie aktualnego stanu grup
@@ -181,6 +54,7 @@ async function fetchGroups() {
     lastGroupsFetchTs = Date.now();
     const response = await fetch('/api/groups');
     const data = await response.json();
+
 
     cachedGroups = data;
     updatePilotsDisplay();
@@ -214,7 +88,7 @@ async function fetchGroups() {
                         Usuń
                     </button>
                 </li>`;
-});
+        });
 
 
         groupHtml += '</ul></div>';
@@ -222,35 +96,67 @@ async function fetchGroups() {
     });
 }
 
+
+
+/*
 // Konfiguracja WebSocketu
 const wsProtocol = window.location.protocol === "https:" ? "wss://" : "ws://";
 const ws = new WebSocket(wsProtocol + window.location.host + "/ws");
 
-ws.onmessage = function(event) {
+ws.onmessage = function (event) {
     const data = JSON.parse(event.data);
+    console.log("Otrzymano wiadomość WebSocket:", data);
+    handleServerMessage(data);
+}
 
+ws.onopen = function () {
+    console.log("Połączono z serwerem WKM Racing!");
+    setPauseButton(false);
+    fetchGroups(); // Pobierz grupy przy pierwszym uruchomieniu
+    updatePilotsDisplay();
+};
+
+*/
+
+// Konfiguracja SSE (Server-Sent Events) jako fallback dla WebSocket
+
+eventSource = new EventSource("/api/sse");
+eventSource.onmessage = function (event) {
+    const data = JSON.parse(event.data);
+    handleServerMessage(data);
+}
+
+eventSource.onerror = function () {
+    console.error("Błąd połączenia SSE. Próba ponownego połączenia...");
+    setTimeout(() => {
+        window.location.reload(); // Odśwież stronę, aby spróbować ponownie nawiązać połączenie
+    }, 5000); // Spróbuj ponownie po 5 sekundach
+};
+
+async function handleServerMessage(data) {
+    // Ta funkcja jest identyczna z ws.onmessage, ale obsługuje wiadomości z SSE
     // Aktualizacja timera i fazy na żywo
     if (data.type === "timer") {
         const phaseText = data.phase || "";
         const currentPhase = (document.getElementById("phaseDisplay").innerText || "").toLowerCase();
 
-        document.getElementById("phaseDisplay").innerText = "Faza: " + data.phase;
+        document.getElementById("phaseDisplay").innerText = data.phase;
 
         // Formatowanie sekund na MM:SS
+        const time_left = data.time_left || 0;
+        const time_display = data.time_display || "00:00";
+
         const minutes = Math.floor(data.time_left / 60);
         const seconds = data.time_left % 60;
-        document.getElementById("timerDisplay").innerText =
-            (minutes < 10 ? "0" : "") + minutes + ":" +
-            (seconds < 10 ? "0" : "") + seconds;
+        document.getElementById("timerDisplay").innerText = time_display;
 
-        document.getElementById("currentGroupDisplay").innerText = "Leci grupa: " + data.group_id;
+        document.getElementById("currentGroupDisplay").innerText = data.group_id;
 
         // Znacznik "(Teraz leci)" opiera się o /api/groups.current_index,
         // więc odświeżamy grupy okresowo podczas tików timera.
-        refreshGroupsThrottled();
+        // refreshGroupsThrottled();
 
         const phaseLower = (data.phase || "").toLowerCase();
-        setPauseButton(phaseLower.includes("pauza"));
 
         updatePilotsDisplay();
     }
@@ -259,6 +165,17 @@ ws.onmessage = function(event) {
     else if (data.type === "warning") {
         // Możesz tu w przyszłości dodać odtwarzanie dźwięku
         console.log("Ostrzeżenie: " + data.message);
+        const messageEl = document.getElementById("messageText");
+        messageEl.innerText = data.message;
+        messageEl.style.background_color = data.color || "black";
+        messageEl.style.display = "block";
+        messageEl.style.visibility = "visible";
+        setTimeout(() => {
+            messageEl.style.display = "none";
+            messageEl.style.color = "black"; // Reset koloru po ukryciu
+            messageEl.innerText = ""; // Reset tekstu po ukryciu
+            messageEl.style.visibility = "hidden";
+        }, (data.display_for || 5) * 1000); // Ukryj wiadomość po określonym czasie
     }
 
     // Automatyczne odświeżenie listy grup, gdy np. ktoś dołączy
@@ -272,11 +189,4 @@ ws.onmessage = function(event) {
     else if (data.type === "phase_skipped") {
         fetchGroups();
     }
-};
-
-ws.onopen = function() {
-    console.log("Połączono z serwerem WKM Racing!");
-    setPauseButton(false);
-    fetchGroups(); // Pobierz grupy przy pierwszym uruchomieniu
-    updatePilotsDisplay();
 };

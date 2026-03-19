@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WKM Racing - Panel Mistrza Ceremonii</title>
+    <link rel="icon" href="/static/wkm.ico" type="image/x-icon">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f9;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            margin-top: 0;
+        }
+
+        input,
+        button,
+        select {
+            padding: 10px;
+            margin: 5px 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .group-card {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 4px;
+        }
+
+        .channel-badge {
+            background-color: #ffc107;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.8em;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Panel Mistrza Ceremonii</h1>
+
+    <div class="card" id="timerCard" style="text-align: center; background-color: #222; color: #fff; padding: 15px;">
+        <h2 id="phaseDisplay" style="color: #ffc107; margin: 5px 0;">Faza: Oczekiwanie</h2>
+        <h1 id="timerDisplay" style="font-size: 4em; margin: 5px 0; font-family: monospace;">00:00</h1>
+        <h3 id="currentGroupDisplay" style="margin: 5px 0;">Grupa: -</h3>
+        <div id="pilotsDisplay"
+            style="margin-top: 10px; font-size: 0.95em; display: flex; justify-content: center; gap: 30px; flex-wrap: wrap;">
+            <div id="currentPilots" style="text-align: left;"></div>
+            <div id="nextPilots"
+                style="text-align: left; opacity: 0.7; border-left: 1px solid #ffc107; padding-left: 30px;"></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Zarządzanie Pilotami</h2>
+        <div style="margin-bottom: 15px;">
+            <input type="text" id="pilotSearch" placeholder="Szukaj pilota...">
+            <button onclick="searchPilots()" style="background-color: #28a745;">Szukaj</button>
+        </div>
+        <div id="searchResults" style="margin-bottom: 15px; max-height: 200px; overflow-y: auto;"></div>
+
+        <div id="searchResults" style="margin-bottom: 15px; max-height: 200px; overflow-y: auto;"></div>
+        <div style="border-top: 1px solid #ccc; padding-top: 15px;">
+            <h3>Nowy Pilot</h3>
+            <input type="text" id="newPilotName" placeholder="Imię/Nick">
+            <button onclick="createNewPilot()" style="background-color: #28a745;">Utwórz Pilota</button>
+        </div>
+    </div>
+
+
+    <div class="card">
+        <h2>1. Zarządzanie Sesją</h2>
+        <input type="text" id="sessionName" placeholder="Nazwa sesji">
+        <input type="number" id="prepDuration" placeholder="Czas przygotowania (sekundy)" value="120">
+        <input type="number" id="flightDuration" placeholder="Czas przelotu (sekundy)" value="600">
+        <button onclick="startSession()">Rozpocznij Sesję</button>
+        <button id="pauseResumeBtn" onclick="togglePauseSession()" style="background-color: #6c757d;">
+            Pauza
+        </button>
+        <button onclick="skipPhase()" style="background-color: #fd7e14;">
+            Skip Etap
+        </button>
+        <button onclick="stopSession()" style="background-color: #dc3545;">Zakończ Sesję</button>
+    </div>
+
+    <div class="card">
+        <h2>2. Dodaj Pilota</h2>
+        <input type="text" id="pilotName" placeholder="Nick/Imię Pilota">
+        <select id="pilotSystem">
+            <option value="analog">System Analogowy</option>
+            <option value="digital">System Cyfrowy (DJI/Walksnail/Hdzero<3)< /option>
+        </select>
+        <button onclick="addPilot()">Dodaj Pilota do Sesji</button>
+    </div>
+
+    <div class="card">
+        <h2>3. Aktualne Grupy i Kanały</h2>
+        <button onclick="fetchGroups()" style="background-color: #28a745;">Odśwież Grupy</button>
+        <div id="groupsContainer">Brak grup. Dodaj pilotów.</div>
+    </div>
+
+    <script src="/static/app.js"></script>
+    <script src="/static/admin.js"></script>
+</body>
+
+</html>
