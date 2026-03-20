@@ -1,0 +1,60 @@
+<div id="roster-app">
+    <div class="toolbar">
+        <button onclick="rebalanceRoster()" class="btn btn-warning">Auto-Rebalance</button>
+        <button onclick="saveRoster()" class="btn btn-success">Zapisz zmiany</button>
+    </div>
+
+    <div id="paddock" class="paddock-area" ondrop="drop(event, 'paddock')" ondragover="allowDrop(event)">
+    </div>
+
+    <table class="roster-table">
+        <thead>
+            <tr>
+                <th>Grupa</th>
+                <th>R1</th>
+                <th>R3</th>
+                <th>R6</th>
+                <th>R7</th>
+            </tr>
+        </thead>
+        <tbody id="roster-body">
+        </tbody>
+    </table>
+</div>
+
+<script>
+    async function loadRoster() {
+        const res = await fetch(`/api/roster/current`);
+        const roster = await res.json();
+        renderRoster(roster);
+    }
+
+    function renderRoster(data) {
+        const body = document.getElementById('roster-body');
+        body.innerHTML = data.groups.map(g => `
+        <tr>
+            <td>G${g.group_id}</td>
+            ${['R1', 'R3', 'R6', 'R7'].map(ch => `
+                <td class="slot" ondrop="drop(event, ${g.group_id}, '${ch}')" ondragover="allowDrop(event)">
+                    ${renderPilot(g.slots[ch])}
+                </td>
+            `).join('')}
+        </tr>
+    `).join('');
+
+        document.getElementById('paddock').innerHTML = data.unassigned.map(p => renderPilot(p)).join('');
+    }
+
+    function renderPilot(p) {
+        if (!p) return '<span class="empty">wolny</span>';
+        return `<div class="pilot-card vtx-${p.vtx_type.toLowerCase()}" draggable="true" ondragstart="drag(event, ${p.pilot_id})">
+                ${p.name}
+            </div>`;
+    }
+
+    async function rebalanceRoster() {
+        await fetch('/api/roster/rebalance', { method: 'POST' });
+        loadRoster();
+    }
+    // ... reszta logiki drag & drop wywołująca api/roster/move ...
+</script>

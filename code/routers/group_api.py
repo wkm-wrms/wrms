@@ -12,7 +12,7 @@ router = APIRouter(
 db: RaceDatabase = get_db()
 
 
-@router.get("/")
+@router.get("")
 async def get_session_groups():
     session = get_session()
     if session is None:

@@ -1,0 +1,47 @@
+<div id="roster-display"></div>
+
+<script>
+    (function () {
+        const container = document.getElementById('roster-display');
+
+        async function refresh() {
+            const res = await fetch('/api/roster/current');
+            const data = await res.json();
+
+            let html = '<div class="roster-grid">';
+            data.groups.forEach(g => {
+                html += `<div class="group-view"><h4>Grupa ${g.group_id}</h4>`;
+                for (let ch in g.slots) {
+                    const p = g.slots[ch];
+                    html += `<div class="ch-row"><b>${ch}:</b> ${p ? p.name : '---'}</div>`;
+                }
+                html += '</div>';
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        setInterval(refresh, 5000); // Auto-odświeżanie co 5 sekund
+        refresh();
+    })();
+</script>
+<style>
+    .roster-grid {
+        display: flex;
+        gap: 10px;
+        overflow-x: auto;
+        padding: 10px;
+    }
+
+    .group-view {
+        border: 1px solid #ccc;
+        padding: 10px;
+        min-width: 150px;
+        background: #fff;
+    }
+
+    .ch-row {
+        font-size: 0.9em;
+        border-bottom: 1px solid #eee;
+    }
+</style>

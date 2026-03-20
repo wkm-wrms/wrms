@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from typing import List
 import asyncio
-import math
+import json
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -29,7 +29,6 @@ session: Session = db.get_active_session()
 if (session):
     set_session(session)
 
-
 MAX_PILOTS_PER_GROUP = 4
 ALLOWED_CHANNELS = ["R1", "R3", "R6", "R7", "LB"]
 
@@ -49,17 +48,17 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/")
 async def serve_frontend():
-    return FileResponse("static/index.html")
+    return FileResponse("static/dashboard.html")
 
 
 @app.get("/index.html")
 async def serve_frontend2():
-    return FileResponse("static/index.html")
+    return FileResponse("static/dashboard.html")
 
 
 @app.get("/display")
 async def serve_display():
-    return FileResponse("static/display.html")
+    return FileResponse("static/dashboard.html")
 
 
 @app.get("/admin")
@@ -78,7 +77,9 @@ async def training_cycle_loop():
     - Jeśli timer nie jest uruchomiony lub nie ma grup, wysyła komunikat
     o oczekiwaniu/pauzie.
     """
-    None
+    await asyncio.sleep(1)
+
+
 """
     while True:
         if state.timer_running and len(state.groups) > 0:

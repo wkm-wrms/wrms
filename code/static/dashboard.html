@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="pl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FPV Race Dashboard</title>
+    <style>
+        :root {
+            --bg-dark: #0a0a0a;
+            --card-bg: #161616;
+            --text-main: #eeeeee;
+            --accent: #00d4ff;
+            --warning: #ffcc00;
+            --danger: #ff4d4d;
+            --success: #2ecc71;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* --- TIMER & STATUS --- */
+        .top-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        #status-label {
+            font-size: 2.5rem;
+            text-transform: uppercase;
+            letter-spacing: 8px;
+            color: var(--accent);
+            margin-bottom: -10px;
+            text-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
+        }
+
+        #timer {
+            font-size: 18vw;
+            font-weight: 900;
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
+            transition: color 0.3s ease;
+        }
+
+        .timer-low {
+            color: var(--danger);
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.7;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        /* --- CURRENT PILOTS GRID --- */
+        .pilot-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            padding: 0 20px 20px 20px;
+        }
+
+        .pilot-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            border: 2px solid #222;
+            transition: all 0.3s ease;
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .pilot-card.active {
+            border-color: var(--accent);
+            box-shadow: inset 0 0 20px rgba(0, 212, 255, 0.1);
+        }
+
+        .channel-label {
+            font-size: 1.2rem;
+            color: #666;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .pilot-name {
+            font-size: 2.2rem;
+            font-weight: bold;
+            color: #fff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .vtx-info {
+            font-size: 1rem;
+            color: var(--accent);
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+
+        .empty-slot {
+            color: #333;
+            font-style: italic;
+            font-size: 1.5rem;
+        }
+
+        /* --- NEXT HEAT BAR --- */
+        .next-heat-bar {
+            background: #111;
+            padding: 12px 30px;
+            display: flex;
+            align-items: center;
+            border-top: 1px solid #333;
+            min-height: 50px;
+        }
+
+        .next-label {
+            font-weight: bold;
+            color: var(--warning);
+            margin-right: 25px;
+            font-size: 1.1rem;
+            white-space: nowrap;
+        }
+
+        .next-pilots-container {
+            display: flex;
+            gap: 40px;
+            font-size: 1.3rem;
+            overflow: hidden;
+        }
+
+        .next-pilot-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .next-ch {
+            color: #666;
+            font-size: 0.8rem;
+            background: #222;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .next-name {
+            font-weight: 500;
+            color: #bbb;
+        }
+
+        /* --- FOOTER --- */
+        .footer {
+            padding: 15px;
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            background: #000;
+        }
+
+        .btn {
+            padding: 12px 35px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .btn-secondary {
+            background: #333;
+            color: #ccc;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #000;
+        }
+
+        /* --- MODAL --- */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            margin: 2% auto;
+            padding: 25px;
+            width: 85%;
+            height: 85%;
+            border-radius: 15px;
+            position: relative;
+            border: 1px solid #333;
+        }
+
+        .close {
+            position: absolute;
+            right: 20px;
+            top: 15px;
+            font-size: 3rem;
+            cursor: pointer;
+            color: #666;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="top-section">
+        <div id="status-label">ŁADOWANIE...</div>
+        <div id="timer">00:00</div>
+    </div>
+
+    <div class="pilot-grid">
+        <div class="pilot-card" id="slot-R1">
+            <div class="channel-label">R1</div>
+            <div class="pilot-content"></div>
+        </div>
+        <div class="pilot-card" id="slot-R3">
+            <div class="channel-label">R3</div>
+            <div class="pilot-content"></div>
+        </div>
+        <div class="pilot-card" id="slot-R6">
+            <div class="channel-label">R6</div>
+            <div class="pilot-content"></div>
+        </div>
+        <div class="pilot-card" id="slot-R7">
+            <div class="channel-label">R7</div>
+            <div class="pilot-content"></div>
+        </div>
+    </div>
+
+    <div class="next-heat-bar">
+        <div class="next-label">NASTĘPNY BIEG:</div>
+        <div id="next-pilots-list" class="next-pilots-container">
+            <span style="color:#444">Oczekiwanie na dane...</span>
+        </div>
+    </div>
+
+    <div class="footer">
+        <button class="btn btn-secondary" onclick="openModal('groupsModal')">Lista Grup</button>
+        <button class="btn btn-primary" onclick="openModal('pilotModal')">Panel Pilota</button>
+    </div>
+
+    <div id="groupsModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('groupsModal')">&times;</span>
+            <iframe id="groups-frame" style="width:100%; height:100%; border:none;"></iframe>
+        </div>
+    </div>
+
+    <div id="pilotModal" class="modal">
+        <div class="modal-content" style="text-align:center; height: auto; margin-top: 10%;">
+            <span class="close" onclick="closeModal('pilotModal')">&times;</span>
+            <h2 style="font-size: 2rem; color: var(--accent);">Panel Pilota</h2>
+            <div style="display:grid; gap:20px; padding: 40px;">
+                <button class="btn btn-secondary" style="padding: 25px;" onclick="pilotAction('stop')">ZAKOŃCZ
+                    LATANIE</button>
+                <button class="btn btn-secondary" style="padding: 25px;" onclick="pilotAction('break')">PRZERWA
+                    (DNP)</button>
+                <button class="btn btn-primary" style="padding: 25px;" onclick="pilotAction('return')">POWRÓT DO
+                    KOLEJKI</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const CHANNELS = ["R1", "R3", "R6", "R7"];
+
+        async function updateDashboard() {
+            try {
+                // 1. Pobierz Aktualny Heat
+                const resCurr = await fetch('/api/heat');
+                const dataCurr = await resCurr.json();
+                renderCurrentHeat(dataCurr);
+
+                // 2. Pobierz Następny Heat
+                const resNext = await fetch('/api/heat/next');
+                const dataNext = await resNext.json();
+                renderNextHeat(dataNext);
+
+            } catch (e) {
+                console.error("Dashboard Sync Error:", e);
+            }
+        }
+
+        function renderCurrentHeat(response) {
+            const timerEl = document.getElementById('timer');
+            const statusEl = document.getElementById('status-label');
+
+            if (response.status !== "OK" || !response.heat) {
+                statusEl.innerText = response.message || "SESJA WSTRZYMANA";
+                timerEl.innerText = "PAUZA";
+                timerEl.classList.remove('timer-low');
+                clearCurrentGrid();
+                return;
+            }
+
+            const heat = response.heat;
+            statusEl.innerText = heat.heat_status;
+
+            // Timer Logic
+            if (heat.live_seconds_left !== null) {
+                const secs = heat.live_seconds_left;
+                timerEl.innerText = formatTime(secs);
+
+                // Alert wizualny poniżej 30s
+                if (secs < 30 && heat.heat_status === 'FLIGHT') {
+                    timerEl.classList.add('timer-low');
+                } else {
+                    timerEl.classList.remove('timer-low');
+                }
+            } else {
+                timerEl.innerText = "READY";
+                timerEl.classList.remove('timer-low');
+            }
+
+            // Pilots Grid Logic
+            CHANNELS.forEach(ch => {
+                const slot = document.getElementById(`slot-${ch}`);
+                const pilot = heat.pilots_data[ch];
+                const content = slot.querySelector('.pilot-content');
+
+                if (pilot) {
+                    slot.classList.add('active');
+                    content.innerHTML = `
+                    <div class="pilot-name">${pilot.name}</div>
+                    <div class="vtx-info">${pilot.vtx_type}</div>
+                `;
+                } else {
+                    slot.classList.remove('active');
+                    content.innerHTML = `<div class="empty-slot">---</div>`;
+                }
+            });
+        }
+
+        function renderNextHeat(response) {
+            const container = document.getElementById('next-pilots-list');
+
+            if (response.status !== "OK" || !response.heat) {
+                container.innerHTML = '<span style="color:#444">Brak zaplanowanych kolejnych biegów</span>';
+                return;
+            }
+
+            const pilots = response.heat.pilots_data;
+            const html = CHANNELS.map(ch => {
+                const p = pilots[ch];
+                if (!p) return '';
+                return `
+                <div class="next-pilot-item">
+                    <span class="next-ch">${ch}</span>
+                    <span class="next-name">${p.name}</span>
+                </div>
+            `;
+            }).join('');
+
+            container.innerHTML = html || '<span style="color:#444">Brak pilotów w następnej grupie</span>';
+        }
+
+        function clearCurrentGrid() {
+            CHANNELS.forEach(ch => {
+                const slot = document.getElementById(`slot-${ch}`);
+                slot.classList.remove('active');
+                slot.querySelector('.pilot-content').innerHTML = `<div class="empty-slot">---</div>`;
+            });
+        }
+
+        function formatTime(seconds) {
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60);
+            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+        let modalTimer = null; // Zmienna do przechowywania referencji licznika
+
+        // --- GŁÓWNA OBSŁUGA KLAWIATURY ---
+        window.addEventListener('keydown', function (event) {
+            if (event.key === "Escape") {
+                // Sprawdzamy, który modal jest otwarty i go zamykamy
+                const groupsModal = document.getElementById('groupsModal');
+                const pilotModal = document.getElementById('pilotModal');
+
+                if (groupsModal.style.display === 'block') closeModal('groupsModal');
+                if (pilotModal.style.display === 'block') closeModal('pilotModal');
+            }
+        });
+
+        function openModal(id) {
+            const modal = document.getElementById(id);
+            const iframe = document.getElementById('groups-frame');
+
+            if (id === 'groupsModal' && iframe) {
+                // 1. Ustawiamy źródło dopiero teraz
+                iframe.src = "/static/groups_view.html";
+
+                // 2. Czekamy, aż iframe się załaduje, zanim wyślemy sygnał odliczania
+                iframe.onload = () => {
+                    startModalAutoClose(id, 15);
+                };
+            }
+            modal.style.display = 'block';
+
+            // Jeśli otwieramy grupy, ustawiamy autozamykanie
+
+        }
+
+        function closeModal(id) {
+            const modal = document.getElementById(id);
+            const iframe = document.getElementById('groups-frame');
+            modal.style.display = 'none';
+
+            if (id === 'groupsModal' && iframe) {
+                iframe.src = "";
+            }
+            // Czyścimy licznik, jeśli użytkownik zamknął okno ręcznie wcześniej
+            if (modalTimer) {
+                clearTimeout(modalTimer);
+                modalTimer = null;
+            }
+        }
+
+        function startModalAutoClose(id, seconds) {
+            // Czyścimy poprzedni licznik, jeśli istniał
+            if (modalTimer) clearTimeout(modalTimer);
+
+            // Ustawiamy zamknięcie po X sekundach
+            modalTimer = setTimeout(() => {
+                closeModal(id);
+            }, seconds * 1000);
+
+            // Opcjonalnie: informujemy iframe, że ma zacząć odliczać wizualnie
+            const iframe = document.querySelector(`#${id} iframe`);
+            if (iframe && iframe.contentWindow) {
+                iframe.contentWindow.postMessage({ type: 'startCountdown', duration: seconds }, '*');
+            }
+        }
+
+        async function pilotAction(action) {
+            // Tu możesz dodać fetch do Twojego przyszłego API akcji pilota
+            console.log("Pilot action executed:", action);
+            alert("Zgłoszono: " + action);
+            closeModal('pilotModal');
+        }
+
+        // Polling co 1 sekundę
+        /*        setInterval(updateDashboard, 1000); */
+        updateDashboard(); // Pierwsze wywołanie
+    </script>
+</body>
+
+</html>

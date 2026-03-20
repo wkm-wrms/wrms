@@ -21,7 +21,7 @@ class SessionStart (BaseModel):
     prep_duration_sec: int
 
 
-@router.post("/")
+@router.post("")
 async def create_session(data: SessionStart):
     print(f"Creating new session: {data}")
     if not data.name or len(data.name.strip()) == 0:
@@ -42,7 +42,7 @@ async def create_session(data: SessionStart):
     return {"status": "ok", "session": session, "get_session": get_session()}
 
 
-@router.get("/")
+@router.get("")
 async def get_active_session():
     session = get_session()
     if session is None:
@@ -72,6 +72,7 @@ async def get_session_by_id(session_id: str):
 @router.post("/start")
 async def start_session():
     session = get_session()
+    res = None
     if session is None:
         raise HTTPException(
             status_code=400, detail="Brak stworzonej sesji, najpierw okresl jej parametry")
@@ -81,12 +82,12 @@ async def start_session():
         raise HTTPException(
             status_code=400, detail="Brak pilotów. Dodaj co najmniej jednego pilota przed startem sesji.")
     try:
-        session.start()
+        res = session.start()
     except ValueError as e:
         raise HTTPException(
             status_code=400, detail=f"Błąd startu sesji: {e}") from e
     db.save_session_data(session)
-    return {"status": "ok", "message": f"Sesja {session.name} rozpoczęta."}
+    return {"status": "ok", "message": f"Sesja {session.name} rozpoczęta.", "result": res}
 
 
 @router.post("/stop")
@@ -176,7 +177,8 @@ async def session_add_pilot(pilot_add: PilotAdd):
     pilot: Pilot = db.get_pilot_by_id(pilot_add.pilot_id)
     try:
         session.add_pilot(pilot, pilot_add.vtx)
-        db.session_add_pilot(session.id, pilot_add.pilot_id, pilot_add.vtx)
+        db.session_add_pilot(session.session_id,
+                             pilot_add.pilot_id, pilot_add.vtx)
         db.update_groups(session)
     except ValueError:
         return {"status": "error", "message": "Pilot juz jest aktywny"}
@@ -191,6 +193,6 @@ class PilotRemove(BaseModel):
 async def session_remove_pilot(pilot_remove: PilotRemove):
     session = get_session()
     session.remove_pilot(pilot_remove.pilot_id)
-    db.session_remove_pilot(session.id, pilot_remove.pilot_id)
+    db.session_remove_pilot(session.session_id, pilot_remove.pilot_id)
     db.update_groups(session)
     return {"status": "ok"}

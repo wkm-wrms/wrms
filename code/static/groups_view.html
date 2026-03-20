@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="pl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Harmonogram Grup</title>
+    <style>
+        :root {
+            --bg-modal: #161616;
+            --header-bg: #222;
+            --accent: #00d4ff;
+            --text-dim: #888;
+            --text-bright: #eee;
+            --row-hover: #1f1f1f;
+            --current-row: rgba(0, 212, 255, 0.15);
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg-modal);
+            color: var(--text-bright);
+            margin: 0;
+            padding: 10px;
+        }
+
+        h2 {
+            text-align: center;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 1.1rem;
+        }
+
+        th {
+            background-color: var(--header-bg);
+            color: var(--accent);
+            padding: 15px;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+            border-bottom: 2px solid #333;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #222;
+        }
+
+        tr:hover {
+            background-color: var(--row-hover);
+        }
+
+        /* Wyróżnienie aktualnego biegu */
+        tr.active-heat {
+            background-color: var(--current-row);
+            border-left: 4px solid var(--accent);
+        }
+
+        .heat-no {
+            font-weight: bold;
+            color: var(--accent);
+            width: 80px;
+        }
+
+        .pilot-cell {
+            min-width: 150px;
+        }
+
+        .pilot-name {
+            display: block;
+            font-weight: 500;
+        }
+
+        .vtx-tag {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+
+        .empty-slot {
+            color: #444;
+            font-style: italic;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #111;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #444;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2>Harmonogram Wyścigów</h2>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Bieg</th>
+                    <th>R1</th>
+                    <th>R3</th>
+                    <th>R6</th>
+                    <th>R7</th>
+                </tr>
+            </thead>
+            <tbody id="groups-body">
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        const CHANNELS = ["R1", "R3", "R6", "R7"];
+
+        async function loadGroups() {
+            try {
+                const response = await fetch('/api/session');
+                const data = await response.json();
+                if (data.status !== "ok" || !data.session.groups) {
+                    document.getElementById('groups-body').innerHTML =
+                        '<tr><td colspan="5" style="text-align:center; padding:40px;">Brak danych o grupach</td></tr>';
+                    return;
+                }
+                const groups = data.session.groups;
+                const currentHeatNum = data.current_heat ? data.current_heat.heat_number : -1;
+                const tbody = document.getElementById('groups-body');
+
+                const channels = ["R1", "R3", "R6", "R7"];
+
+                groups.forEach(g => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `<td class="group-number-cell">G${g.group_sequence}</td>`;
+
+                    channels.forEach(ch => {
+                        const td = document.createElement('td');
+                        td.className = 'pilot-slot';
+                        td.dataset.groupSeq = g.group_sequence;
+                        td.dataset.channel = ch;
+                        const pilot = g.channels[ch];
+                        if (pilot) {
+                            td.appendChild(createPilotCard(pilot, g.group_sequence, ch));
+                        } else {
+                            td.innerHTML = '<span class="empty-slot">wolny</span>';
+                        }
+                        tr.appendChild(td);
+                    });
+                    tbody.appendChild(tr);
+                });
+
+
+                function createPilotCard(pilot, groupSeq, channel) {
+                    const div = document.createElement('div');
+                    div.className = `pilot-card`;
+                    div.innerHTML = `<strong>${pilot.name}</strong><br><small>${pilot.vtx_type}</small>`;
+
+                    return div;
+                }
+
+
+
+                tbody.innerHTML = data.all_heats.map(heat => {
+                    const isActive = heat.heat_number === currentHeatNum;
+
+                    return `
+                    <tr class="${isActive ? 'active-heat' : ''}">
+                        <td class="heat-no">#${heat.heat_number} ${isActive ? '🔥' : ''}</td>
+                        ${CHANNELS.map(ch => {
+                        const p = heat.pilots_data[ch];
+                        return `
+                                <td class="pilot-cell">
+                                    ${p ? `
+                                        <span class="pilot-name">${p.name}</span>
+                                        <span class="vtx-tag">${p.vtx_type}</span>
+                                    ` : '<span class="empty-slot">---</span>'}
+                                </td>
+                            `;
+                    }).join('')}
+                    </tr>
+                `;
+                }).join('');
+
+            } catch (e) {
+                console.error("Groups Load Error:", e);
+            }
+        }
+
+        // Odświeżamy rzadziej niż dashboard (np. co 10 sekund), 
+        // bo grupy nie zmieniają się tak często
+        loadGroups();
+    </script>
+</body>
+
+</html>

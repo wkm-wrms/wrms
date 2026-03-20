@@ -60,35 +60,40 @@ class Session:
 
     # Permanent session state stored in DB, loaded on demand.
     # Changes are saved immediately (auto_save) or on demand (manual save)
-    id: str
+    session_id: str
     name: str = None
     flight_duration_sec: int = None
     prep_duration_sec: int = None
     is_active: bool = False
     active_pilots: list[ActivePilot] = None
     current_heat: Heat = None
+    current_heat_number: int = None
     next_heat: Heat = None
+    next_heat_number: int = None
     groups: list[Pilot] = None
     current_group: Group = None
+    current_group_index: int = None
     timer_running: bool = False
     timer_start_time: datetime = None
     current_phase: str = "IDLE"  # IDLE, PREP, FLIGHT, PAUSED
     phase_before_pause: str = "PREP"
 
     def __init__(self, name: str, flight_duration_sec: int, prep_duration_sec: int,
-                 id: str = None,
+                 session_id: str = None,
                  is_active: bool = False,
                  active_pilots: list[ActivePilot] = [],
                  current_heat: Heat = None,
                  next_heat: Heat = None,
                  groups: list[Pilot] = [],
                  current_group: Group = None,
+                 current_group_index: int = None,
                  timer_running=False,
                  timer_start_time: datetime = None,
                  current_phase="IDLE",
                  phase_before_pause="PREP"):
         """ Create instance of Session"""
-        self.id = str(uuid.uuid4()) if id is None else id
+        self.session_id = str(
+            uuid.uuid4()) if session_id is None else session_id
         self.name = name
         self.flight_duration_sec = flight_duration_sec
         self.prep_duration_sec = prep_duration_sec
@@ -104,7 +109,7 @@ class Session:
         self.phase_before_pause = phase_before_pause
 
     def to_json(self):
-        """ Custom JSON serialization method for the Session object. 
+        """ Custom JSON serialization method for the Session object.
         This method defines how the Session object should be converted to a JSON-compatible format, including all relevant attributes and related data such as pilots, groups, and heats. It is used when saving the session state to the database or when transmitting session data over a network.
         """
         return {
@@ -131,6 +136,21 @@ class Session:
         if len(self.active_pilots) == 0:
             raise ValueError(
                 "Brak pilotów. Dodaj co najmniej jednego pilota przed startem sesji.")
+
+        self.current_heat = Heat(
+            group=self.groups[0], heat_number=1, session_id=self.get_id())
+        self.current_heat_number = 1
+        self.next_heat = Heat(self.groups[1], 2)
+        self.next_heat_number = 2
+        self.current_group = self.groups[0]
+
+        self.is_active = True
+
+        return {
+            "id": self.id,
+            "name": self.name,
+
+        }
         self.start_timer()
         self.current_phase = "PREP"
 
@@ -153,7 +173,7 @@ class Session:
             self.active_pilots.append(ActivePilot(pilot, vtx))
 
     def remove_pilot(self, pilot_id: int):
-        """ 
+        """
         Removes a pilot from the session's list of active pilots by their ID and triggers auto-saving if enabled.
         This method filters the list of active pilots to exclude the pilot with the specified ID. If the pilot is found and removed, it ensures that the change is persisted to the database if auto-saving is configured. It should be called whenever a pilot needs to be removed from the session.
         """
@@ -290,7 +310,7 @@ class Session:
                 analog_idx += 1
 
             self.groups.append(Group(
-                id=i + 1,
+                group_id=i + 1,
                 pilots=group_pilots,
                 channels=channels,
                 group_sequence=i+1
@@ -298,15 +318,15 @@ class Session:
 
             pilot_index += current_group_size
         print(
-            f"Zbalansowane grupy: {[{'id': g.id, 'pilots': [p.pilot.name for p in g.pilots], 'channels': g.channels} for g in self.groups]}")
+            f"Zbalansowane grupy: {[{'id': g.group_id, 'pilots': [p.pilot.name for p in g.pilots], 'channels': g.channels} for g in self.groups]}")
 
 
 current_session: Session = None
 
 
 def get_session() -> Session:
-    """ Returns the current active session. 
-    This function provides a way to access the session state from other parts of the application, such as API routes or background tasks. It ensures that there is a single shared session instance that can be used throughout the application lifecycle. 
+    """ Returns the current active session.
+    This function provides a way to access the session state from other parts of the application, such as API routes or background tasks. It ensures that there is a single shared session instance that can be used throughout the application lifecycle.
     """
     global current_session
     return current_session
