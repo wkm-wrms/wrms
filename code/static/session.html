@@ -702,13 +702,13 @@
                 list.innerHTML = data.pilots.map(p => `
                 <div class="item">
                     ${p.name} 
-                    <select id="VTX_${p.id}">
+                    <select id="VTX_${p.pilot_id}">
                         <option value="">--- Wybierz VTX ---</option>
                         <option value="Analog">Analog</option>
                         <option value="HD0">HD0</option>
                         <option value="DJI">DJI</option>
                     </select>
-                    <button class="btn btn-primary btn-sm" onclick="addPilot(${p.id})">+</button>
+                    <button class="btn btn-primary btn-sm" onclick="addPilot(${p.pilot_id})">+</button>
                 </div>
                 `).join('');
 

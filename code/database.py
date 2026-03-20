@@ -212,7 +212,7 @@ class RaceDatabase:
             row = conn.execute(
                 "SELECT * FROM pilot WHERE pilot_id = ?", (pilot_id,)).fetchone()
             if row:
-                return Pilot(id=row['pilot_id'], name=row['name'], country=row['country'])
+                return Pilot(pilot_id=row['pilot_id'], name=row['name'], country=row['country'])
             else:
                 return None
 
@@ -221,7 +221,7 @@ class RaceDatabase:
         with self._get_conn() as conn:
             rows = conn.execute(
                 "SELECT * FROM pilot WHERE name LIKE ?", (f"%{query}%",)).fetchall()
-            return [Pilot(id=row['pilot_id'], name=row['name'], country=row['country'])for row in rows]
+            return [Pilot(pilot_id=row['pilot_id'], name=row['name'], country=row['country'])for row in rows]
 
     def get_active_pilots(self, session_id: str):
         with self._get_conn() as conn:
@@ -407,11 +407,11 @@ class RaceDatabase:
                 (session.session_id,)
             )
             for group in session.groups:
-                pilot_ids = [p.pilot.id for p in group.pilots]
+                pilot_ids = [p.pilot_id for p in group.pilots]
                 channels = {}
                 for (k) in group.channels:
                     v = group.channels[k]
-                    channels[k] = v.id
+                    channels[k] = v.pilot_id
                 conn.execute(
                     "INSERT INTO session_group (session_id, pilot_ids, channel_map, group_sequence ) VALUES (?, ?, ?, ?)",
                     (session.session_id,  json.dumps(pilot_ids),

@@ -19,12 +19,14 @@ ALLOWED_CHANNELS = ["R1", "R3", "R6", "R7"]
 
 
 class ActivePilot:
+    pilot_id: int
     pilot: Pilot
     vtx: str
     is_digital: bool
 
     def __init__(self, pilot: Pilot, vtx: str):
         self.pilot = pilot
+        self.pilot_id = pilot.pilot_id
         self.vtx = vtx
         self.is_digital = False if vtx == "Analog" else True
 
@@ -169,7 +171,7 @@ class Session:
         """ Adds a pilot to the session's list of active pilots and triggers auto-saving if enabled.
         This method checks if the pilot is already in the list of active pilots to prevent duplicates. If the pilot is not already active, it adds the pilot to the list and ensures that the change is persisted to the database if auto-saving is configured. It should be called whenever a new pilot needs to be added to the session.
         """
-        if not any(p.pilot.id == pilot.id for p in self.active_pilots):
+        if not any(p.pilot_id == pilot.pilot_id for p in self.active_pilots):
             self.active_pilots.append(ActivePilot(pilot, vtx))
 
     def remove_pilot(self, pilot_id: int):
