@@ -85,20 +85,21 @@ class RaceDatabase:
             )""")
 
             # Sesje Treningowe
-#            conn.execute("drop table if exists active_pilots")
-#            conn.execute("drop table if exists sessions")
+#            conn.execute("drop table if exists pilot_heat")
+#            conn.execute("drop table if exists heat")
+#            conn.execute("drop table if exists active_pilot")
+#            conn.execute("drop table if exists session_group")
+#            conn.execute("drop table if exists session")
             conn.execute("""CREATE TABLE IF NOT EXISTS session (
                 session_id text PRIMARY KEY ,
                 name TEXT NOT NULL,
                 flight_duration_sec INTEGER,
                 prep_duration_sec INTEGER,
                 is_active BOOLEAN DEFAULT 0,
-                current_heat_id INTEGER,
+                current_heat_number INTEGER,
                 current_group_id INTEGER,
                 current_group_index INTEGER,
-                next_heat_id INTEGER,
-                timer_running BOOLEAN DEFAULT 0,
-                timer_start_time_unix REAL,
+                next_heat_number INTEGER,
                 current_phase TEXT CHECK(current_phase IN ('IDLE', 'PREP', 'FLIGHT', 'PAUSED', 'FINISHED')) DEFAULT 'IDLE',
                 phase_before_pause text   CHECK(phase_before_pause IN ('IDLE', 'PREP', 'FLIGHT', 'PAUSED')) DEFAULT 'PREP',
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -264,15 +265,15 @@ class RaceDatabase:
             if row:
                 # Get current heat if it exists
                 (current_group, next_heat, current_heat) = (None, None, None)
-
-                if row['current_heat_id']:
-                    current_heat = self.get_heat_by_id(row['current_heat_id'])
-                if row['next_heat_id']:
-                    next_heat = self.get_heat_by_id(row['next_heat_id'])
+                session_id = row['session_id']
+                if row['current_heat_number']:
+                    current_heat = self.get_heat_by_number(
+                        session_id, row['current_heat_number'])
+                if row['next_heat_number']:
+                    next_heat = self.get_heat_by_number(session_id=session_id,
+                                                        heat_number=row['next_heat_number'])
                 active_pilots = self.get_active_pilots(session_id)
                 timer_start_time_unix = row["timer_start_time_unix"]
-                timer_start_time = datetime.fromtimestamp(
-                    timer_start_time_unix) if timer_start_time_unix is not None else None
                 groups = self.get_groups_by_session_id(session_id)
                 current_group = self.get_group_by_id(
                     row["current_group_id"]) if row["current_group_id"] else None
@@ -282,14 +283,12 @@ class RaceDatabase:
                     prep_duration_sec=row['prep_duration_sec'],
                     session_id=row['session_id'],
                     is_active=row['is_active'],
-                    timer_running=row['timer_running'],
                     current_phase=row['current_phase'],
                     phase_before_pause=row['phase_before_pause'],
                     current_group_index=row['current_group_index'],
                     current_heat=current_heat,
                     next_heat=next_heat,
                     active_pilots=active_pilots,
-                    timer_start_time=timer_start_time,
                     groups=groups,
                     current_group=current_group
                 )
@@ -299,18 +298,14 @@ class RaceDatabase:
     def save_session_data(self, session: Session):
         """Updates all session values in the database."""
         with self._get_conn() as conn:
-            timer_start_time_unix = session.timer_start_time.timestamp(
-            ) if session.timer_start_time else None
             conn.execute("""
                 UPDATE session SET
                     name = ?,
                     flight_duration_sec = ?,
                     prep_duration_sec = ?,
                     is_active = ?,
-                    current_heat_id = ?,
-                    next_heat_id = ?,
-                    timer_running = ?,
-                    timer_start_time_unix = ?,
+                    current_heat_number = ?,
+                    next_heat_number = ?,
                     current_phase = ?,
                     phase_before_pause = ?
                 WHERE session_id = ?
@@ -319,10 +314,8 @@ class RaceDatabase:
                 session.flight_duration_sec,
                 session.prep_duration_sec,
                 session.is_active,
-                session.current_heat.id if session.current_heat else None,
-                session.next_heat.id if session.next_heat else None,
-                session.timer_running,
-                timer_start_time_unix,
+                session.current_heat_number if session.current_heat_number else None,
+                session.next_heat_number if session.next_heat_number else None,
                 session.current_phase,
                 session.phase_before_pause,
                 session.session_id
@@ -543,6 +536,37 @@ class RaceDatabase:
             if row and (row['password_hash'] == hashed):
                 return True
         return False
+
+    # ----------- Obsługa heatów
+
+    def get_heat_by_number(self, session_id: str, heat_number: int):
+        with self._get_conn() as conn:
+            row = conn.execute(
+                "SELECT * FROM heat WHERE session_id = ? AND heat_number = ?",
+                (session_id, heat_number,)
+            ).fetchone()
+            if row:
+                return Heat(
+                    session_id=row['session_id'],
+                    heat_number=row['heat_number'],
+                    group_id=row['group_id'],
+                    group=self.get_group_by_id(row['group_id']),
+                    name=row['name'],
+                    status=row['status'],
+                    flight_duration_sec=row["flight_duration_sec"],
+                    prep_duration_sec=row["prep_duration_sec"],
+                    pilots_data=json.loads(row['pilots_data_json']),
+                    is_active=row['is_active'],
+                    prep_started_at=row['prep_started_at'],
+                    flight_started_at=row['flight_started_at'],
+                    finished_at=row['finished_at'],
+                    current_group_id=row['current_group_id'],
+                    current_group_index=row['current_group_index'],
+                    next_heat_number=row['next_heat_number'],
+                    current_phase=row["current_phase"],
+                    phase_before_pause=row["phase_before_pause"]
+                )
+            return None
 
 
 db_instance = RaceDatabase()

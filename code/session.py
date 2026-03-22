@@ -57,7 +57,7 @@ class Session:
     Methods for pilot management: add_pilot, remove_pilot, get_active_pilots
     Methods for heat management: create_next_heat, set_last_heat_as_current, set_current_heat, get_current_heat, get_next_heat
     Methods for group management: set_groups, get_groups, set_current_group, get_current_group
-    Methods for phase and timer management: set_current_phase, get_current_phase, set_phase_before_pause, get_phase_before_pause, set_timer_running, is_timer_running, set_timer_start_time, get_timer_start_time
+    Methods for phase and timer management: set_current_phase, get_current_phase, set_phase_before_pause, get_phase_before_pause
     """
 
     # Permanent session state stored in DB, loaded on demand.
@@ -75,8 +75,6 @@ class Session:
     groups: list[Pilot] = None
     current_group: Group = None
     current_group_index: int = None
-    timer_running: bool = False
-    timer_start_time: datetime = None
     current_phase: str = "IDLE"  # IDLE, PREP, FLIGHT, PAUSED
     phase_before_pause: str = "PREP"
 
@@ -89,8 +87,6 @@ class Session:
                  groups: list[Pilot] = [],
                  current_group: Group = None,
                  current_group_index: int = None,
-                 timer_running=False,
-                 timer_start_time: datetime = None,
                  current_phase="IDLE",
                  phase_before_pause="PREP"):
         """ Create instance of Session"""
@@ -105,8 +101,6 @@ class Session:
         self.next_heat = next_heat
         self.groups = groups
         self.current_group = current_group
-        self.timer_running = timer_running
-        self.timer_start_time = timer_start_time
         self.current_phase = current_phase  # IDLE, PREP, FLIGHT, PAUSED
         self.phase_before_pause = phase_before_pause
 
@@ -125,8 +119,6 @@ class Session:
             "next_heat": self.next_heat.__json__() if self.next_heat else None,
             "groups": [group.__json__() for group in self.groups],
             "current_group": self.current_group.__json__() if self.current_group else None,
-            "timer_running": self.timer_running,
-            "timer_start_time": self.timer_start_time.isoformat() if self.timer_start_time else None,
             "current_phase": self.current_phase,
             "phase_before_pause": self.phase_before_pause
         }
@@ -138,34 +130,38 @@ class Session:
         if len(self.active_pilots) == 0:
             raise ValueError(
                 "Brak pilotów. Dodaj co najmniej jednego pilota przed startem sesji.")
-
-        self.current_heat = Heat(
-            group=self.groups[0], heat_number=1, session_id=self.get_id())
+        print(
+            f"Starting session group={self.groups[0]}, heat_number=1, session_id={self.session_id}")
         self.current_heat_number = 1
-        self.next_heat = Heat(self.groups[1], 2)
-        self.next_heat_number = 2
+        self.current_group_index = 0
         self.current_group = self.groups[0]
-
-        self.is_active = True
-
+        self.next_heat_number = 2
+        self.current_heat = Heat(
+            group=self.groups[0], heat_number=1, session_id=self.session_id, prep_time=self.prep_duration_sec, flight_time=self.flight_duration_sec)
+        print(f"Heat: {self.current_heat}")
+        next_group_index = (self.current_group_index + 1) % len(self.groups)
+        self.next_heat = Heat(
+            group=self.groups[next_group_index], heat_number=2, session_id=self.session_id, prep_time=self.prep_duration_sec, flight_time=self.flight_duration_sec)
+        self.current_heat.start_prep()
         return {
-            "id": self.id,
+            "status": "error",
+            "id": self.session_id,
             "name": self.name,
+            "message": "Sesja rozpoczęta",
+            "current_phase": self.current_phase,
+            "current_heat": self.current_heat,
+            "next_heat": self.next_heat,
+            "groups": self.groups,
+            "current_group": self.current_group,
+            "current_phase": self.current_phase,
+            "phase_before_pause": self.phase_before_pause
 
         }
-        self.start_timer()
-        self.current_phase = "PREP"
+        self.current_phase = "FLIGHT"
+        self.is_active = True
 
     def stop(self):
         self.current_phase = 'FINISHED'
-
-    def start_timer(self):
-        """ Start timer """
-        self.timer_start_time = datetime.now()
-        self.timer_running = True
-
-    def pause_timer(self):
-        self.timer_running = False
 
     def add_pilot(self, pilot: Pilot, vtx: str):
         """ Adds a pilot to the session's list of active pilots and triggers auto-saving if enabled.
@@ -271,14 +267,6 @@ class Session:
     def set_phase_before_pause(self, phase: str):
         """ Sets the phase that was active before the session was paused and triggers auto-saving if enabled.        """
         self.phase_before_pause = phase
-
-    def get_timer_start_time(self):
-        """ Returns the start time of the session timer.    """
-        return self.timer_start_time
-
-    def set_timer_start_time(self, time: datetime):
-        """ Sets the start time of the session timer and triggers auto-saving if enabled.        """
-        self.timer_start_time = time
 
     def rebalance_groups(self):
         total_pilots = len(self.active_pilots)

@@ -302,24 +302,19 @@
             try {
                 // 1. Pobierz Aktualny Heat
                 const resCurr = await fetch('/api/heat');
-                const dataCurr = await resCurr.json();
-                renderCurrentHeat(dataCurr);
-
-                // 2. Pobierz Następny Heat
-                const resNext = await fetch('/api/heat/next');
-                const dataNext = await resNext.json();
-                renderNextHeat(dataNext);
+                const response = await resCurr.json();
+                rendertHeats(response);
 
             } catch (e) {
                 console.error("Dashboard Sync Error:", e);
             }
         }
 
-        function renderCurrentHeat(response) {
+        function rendertHeats(response) {
             const timerEl = document.getElementById('timer');
             const statusEl = document.getElementById('status-label');
 
-            if (response.status !== "OK" || !response.heat) {
+            if (response.status !== "ok" || !response.heat) {
                 statusEl.innerText = response.message || "SESJA WSTRZYMANA";
                 timerEl.innerText = "PAUZA";
                 timerEl.classList.remove('timer-low');
@@ -328,7 +323,7 @@
             }
 
             const heat = response.heat;
-            statusEl.innerText = heat.heat_status;
+            statusEl.innerText = heat.status;
 
             // Timer Logic
             if (heat.live_seconds_left !== null) {
@@ -336,7 +331,7 @@
                 timerEl.innerText = formatTime(secs);
 
                 // Alert wizualny poniżej 30s
-                if (secs < 30 && heat.heat_status === 'FLIGHT') {
+                if (secs < 30 && heat.status === 'FLIGHT') {
                     timerEl.classList.add('timer-low');
                 } else {
                     timerEl.classList.remove('timer-low');
@@ -346,7 +341,7 @@
                 timerEl.classList.remove('timer-low');
             }
 
-            // Pilots Grid Logic
+            // Current ilots Grid Logic
             CHANNELS.forEach(ch => {
                 const slot = document.getElementById(`slot-${ch}`);
                 const pilot = heat.pilots_data[ch];
@@ -363,17 +358,16 @@
                     content.innerHTML = `<div class="empty-slot">---</div>`;
                 }
             });
-        }
 
-        function renderNextHeat(response) {
+            const next_heat = response.next_heat;
             const container = document.getElementById('next-pilots-list');
 
-            if (response.status !== "OK" || !response.heat) {
+            if (!next_heat) {
                 container.innerHTML = '<span style="color:#444">Brak zaplanowanych kolejnych biegów</span>';
                 return;
             }
 
-            const pilots = response.heat.pilots_data;
+            const pilots = next_heat.pilots_data;
             const html = CHANNELS.map(ch => {
                 const p = pilots[ch];
                 if (!p) return '';
@@ -397,6 +391,9 @@
         }
 
         function formatTime(seconds) {
+            if (seconds <= 0) {
+                return "00:00";
+            }
             const m = Math.floor(seconds / 60);
             const s = Math.floor(seconds % 60);
             return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
@@ -473,7 +470,7 @@
         }
 
         // Polling co 1 sekundę
-        /*        setInterval(updateDashboard, 1000); */
+        setInterval(updateDashboard, 1000);
         updateDashboard(); // Pierwsze wywołanie
     </script>
 </body>

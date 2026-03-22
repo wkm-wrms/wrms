@@ -521,7 +521,7 @@
                 <button class="btn btn-primary" onclick="openGroupModal()"> Zarządzaj Grupami </button>
                 <button class="btn btn-warning" onclick="rebalanceGroups()">Rebalnsuj Grupy</button>
                 <button class="btn btn-success" onclick="startSession()">START WYŚCIGÓW</button>
-                <button class="btn btn-danger" onclick="terminateSession()">SKASUJ SESJĘ</button>
+                <button class="btn btn-danger" onclick="terminateSession()">ZAKOŃCZ SESJĘ</button>
             </div>
             <section class="card" style="margin-top: 20px; overflow-x: auto;">
                 <h3>Harmonogram Grup i Kanałów</h3>
@@ -655,11 +655,17 @@
         }
 
         async function startSession() {
-            try {
-                await fetch('/api/session/start', { method: 'POST' });
-            } catch (err) {
+
+            let res = await fetch('/api/session/start', { method: 'POST' });
+            if (res.status !== 200) {
                 alert("Błąd: " + err.message);
                 console.error(err);
+                return null;
+            }
+            const data = await res.json();
+            if (data.status == "error") {
+                alert("Błąd: " + data.message);
+                console.error(data.message);
                 return null;
             }
             updateUI();
@@ -815,7 +821,6 @@
         async function renderGroupsTable(groups) {
             const tbody = document.getElementById('groupsTableBody');
             tbody.innerHTML = '';
-            console.log("renderGroupsTable (" + groups + ")")
             const allowedChannels = ["R1", "R3", "R6", "R7"];
             if (!groups) return;
             groups.forEach(group => {

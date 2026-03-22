@@ -74,18 +74,17 @@ async def start_session():
     session = get_session()
     res = None
     if session is None:
-        raise HTTPException(
-            status_code=400, detail="Brak stworzonej sesji, najpierw okresl jej parametry")
+        return {"status": "error", "message": "Brak stworzonej sesji, najpierw okresl jej parametry"}
     if session.is_session_active():
-        raise HTTPException(status_code=400, detail="Sesja już trwa.")
+        return {"status": "error", "message": "Sesja już trwa."}
     if len(session.active_pilots) == 0:
-        raise HTTPException(
-            status_code=400, detail="Brak pilotów. Dodaj co najmniej jednego pilota przed startem sesji.")
+        return {"status": "error", "message": "Brak pilotów. Dodaj co najmniej jednego pilota przed startem sesji."}
+    if len(session.groups) == 0:
+        return {"status": "error", "message": "Brak grup. Stwórz grupy przed startem sesji."}
     try:
         res = session.start()
     except ValueError as e:
-        raise HTTPException(
-            status_code=400, detail=f"Błąd startu sesji: {e}") from e
+        return {"status": "error", "message": f"Błąd startu sesji: {e}"}
     db.save_session_data(session)
     return {"status": "ok", "message": f"Sesja {session.name} rozpoczęta.", "result": res}
 
