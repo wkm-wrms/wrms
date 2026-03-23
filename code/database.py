@@ -1,5 +1,6 @@
 import sqlite3
 import json
+import os
 import traceback
 
 from datetime import datetime
@@ -54,6 +55,9 @@ class RaceDatabase:
 
     def __init__(self, db_path: str = "data/race_system.db"):
         self.db_path = db_path
+        db_dir = os.path.dirname(db_path)
+        if db_dir:
+            os.makedirs(db_dir, exist_ok=True)
         self._init_tables()
 
     def _get_conn(self):
