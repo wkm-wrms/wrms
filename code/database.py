@@ -84,12 +84,11 @@ class RaceDatabase:
                 password_hash TEXT NOT NULL
             )""")
 
-            # Sesje Treningowe
-#            conn.execute("drop table if exists pilot_heat")
-#            conn.execute("drop table if exists heat")
-#            conn.execute("drop table if exists active_pilot")
-#            conn.execute("drop table if exists session_group")
-#            conn.execute("drop table if exists session")
+            # conn.execute("drop table if exists pilot_heat")
+            # conn.execute("drop table if exists heat")
+            # conn.execute("drop table if exists active_pilot")
+            # conn.execute("drop table if exists session_group")
+            # conn.execute("drop table if exists session")
             conn.execute("""CREATE TABLE IF NOT EXISTS session (
                 session_id text PRIMARY KEY ,
                 name TEXT NOT NULL,
@@ -99,6 +98,7 @@ class RaceDatabase:
                 current_heat_number INTEGER,
                 current_group_id INTEGER,
                 current_group_index INTEGER,
+                next_group_index INTEGER,
                 next_heat_number INTEGER,
                 current_phase TEXT CHECK(current_phase IN ('IDLE', 'PREP', 'FLIGHT', 'PAUSED', 'FINISHED')) DEFAULT 'IDLE',
                 phase_before_pause text   CHECK(phase_before_pause IN ('IDLE', 'PREP', 'FLIGHT', 'PAUSED')) DEFAULT 'PREP',
@@ -141,10 +141,14 @@ class RaceDatabase:
                     heat_number INTEGER NOT NULL, -- np. Bieg w ramach sesji nr 1, 2, 3...
                     group_id INTEGER NOT NULL,
 
+                    prep_time INTEGER NOT NULL,
+                    flight_time INTEGER NOT NULL,
+
+
                     status TEXT DEFAULT 'INIT', -- INIT, PREP, FLIGHT, PAUSED, FINISHED
 
                     -- "Zamrożony" skład (JSON lub dedykowana tabela)
-                    pilots_data_json TEXT NOT NULL,
+                    channels_json TEXT NOT NULL,
 
                     -- Markery czasu (Unix Timestamp)
                     created_at REAL DEFAULT (strftime('%s', 'now')),
@@ -225,14 +229,18 @@ class RaceDatabase:
             return [Pilot(pilot_id=row['pilot_id'], name=row['name'], country=row['country'])for row in rows]
 
     def get_active_pilots(self, session_id: str):
+        res = {}
         with self._get_conn() as conn:
             rows = conn.execute(
                 "SELECT pilot_id, vtx FROM active_pilot WHERE session_id = ?", (
                     session_id,)
             ).fetchall()
-            return [
-                ActivePilot(self.get_pilot_by_id(row['pilot_id']), row["vtx"]) for row in rows]
-        return []
+            ret = {}
+            for row in rows:
+                res[row["pilot_id"]] = ActivePilot(
+                    self.get_pilot_by_id(row['pilot_id']), row["vtx"])
+            return res
+        return {}
 
 # -- Obsługa sesji
 
@@ -264,19 +272,29 @@ class RaceDatabase:
             ).fetchone()
             if row:
                 # Get current heat if it exists
-                (current_group, next_heat, current_heat) = (None, None, None)
+                (current_group, next_heat, current_heat, current_heat_number,
+                 next_heat_number) = (None, None, None, None, None)
                 session_id = row['session_id']
+                active_pilots = self.get_active_pilots(session_id)
                 if row['current_heat_number']:
                     current_heat = self.get_heat_by_number(
-                        session_id, row['current_heat_number'])
+                        session_id, row['current_heat_number'], active_pilots=active_pilots)
                 if row['next_heat_number']:
                     next_heat = self.get_heat_by_number(session_id=session_id,
-                                                        heat_number=row['next_heat_number'])
-                active_pilots = self.get_active_pilots(session_id)
-                timer_start_time_unix = row["timer_start_time_unix"]
-                groups = self.get_groups_by_session_id(session_id)
+                                                        heat_number=row['next_heat_number'], active_pilots=active_pilots)
+
+                groups = self.get_groups_by_session_id(
+                    session_id, active_pilots)
+                heats = self.get_active_heats(session_id, active_pilots)
+                if len(heats) >= 1:
+                    current_heat = heats[0]
+                    current_heat_number = current_heat.heat_number
+                if len(heats) >= 2:
+                    next_heat = heats[1]
+                    next_heat_number = next_heat.heat_number
+
                 current_group = self.get_group_by_id(
-                    row["current_group_id"]) if row["current_group_id"] else None
+                    row["current_group_id"], session.active_pilots) if row["current_group_id"] else None
                 session = Session(
                     name=row['name'],
                     flight_duration_sec=row['flight_duration_sec'],
@@ -286,8 +304,13 @@ class RaceDatabase:
                     current_phase=row['current_phase'],
                     phase_before_pause=row['phase_before_pause'],
                     current_group_index=row['current_group_index'],
+                    next_group_index=row['next_group_index'],
                     current_heat=current_heat,
+                    current_heat_number=current_heat_number,
                     next_heat=next_heat,
+                    next_heat_number=next_heat_number,
+
+
                     active_pilots=active_pilots,
                     groups=groups,
                     current_group=current_group
@@ -307,7 +330,9 @@ class RaceDatabase:
                     current_heat_number = ?,
                     next_heat_number = ?,
                     current_phase = ?,
-                    phase_before_pause = ?
+                    phase_before_pause = ?, 
+                    current_group_index=?,
+                    next_group_index=?
                 WHERE session_id = ?
             """, (
                 session.name,
@@ -318,6 +343,8 @@ class RaceDatabase:
                 session.next_heat_number if session.next_heat_number else None,
                 session.current_phase,
                 session.phase_before_pause,
+                session.current_group_index,
+                session.next_group_index,
                 session.session_id
             ))
             conn.commit()
@@ -354,7 +381,7 @@ class RaceDatabase:
 # --- OBSŁUGA GRUP
 
 
-    def get_groups_by_session_id(self, session_id: str):
+    def get_groups_by_session_id(self, session_id: str, active_pilots: dict[int, ActivePilot]):
         """ Get all groups attached to specyfic session """
         with self._get_conn() as conn:
             # Fetch all group IDs for the session
@@ -362,34 +389,32 @@ class RaceDatabase:
                 "SELECT group_id FROM session_group WHERE session_id = ? ORDER BY group_sequence",
                 (session_id,)
             ).fetchall()
-            return [self.get_group_by_id(row["group_id"]) for row in rows]
+            return [self.get_group_by_id(row["group_id"], active_pilots) for row in rows]
 
-    def get_group_by_id(self, group_id: int):
+    def get_group_by_id(self, group_id: int, active_pilots: dict[int, ActivePilot]):
         """ GEt all session data """
         with self._get_conn() as conn:
             row = conn.execute(
                 "SELECT *  FROM session_group WHERE group_id=?  ORDER BY group_sequence",
                 (group_id,)
             ).fetchone()
-            pilots: list[Pilot] = []
-            pilots_ids = json.loads(row['pilot_ids'])
-            pilot_by_id: map[int, Pilot] = {}
-            if pilots_ids is not None and isinstance(pilots_ids, list):
-                for pilot_id in pilots_ids:
-                    pilot = self.get_pilot_by_id(pilot_id)
-                    if pilot:
-                        pilots.append(pilot)
-                        pilot_by_id[pilot_id] = pilot
+#            pilots_ids = json.loads(row['pilot_ids'])
+#            pilot_by_id: map[int, ActivePilot] = {}
+#            if pilots_ids is not None and isinstance(pilots_ids, list):
+#                for pilot_id in pilots_ids:
+#                    pilot = active_pilots[pilot_id] if pilot_id in active_pilots else None
+#                    if pilot:
+#                        pilot_by_id[pilot_id] = pilot
 
             channels_map = json.loads(
                 row['channel_map']) if row['channel_map'] else {}
-            channels: map[str, Pilot] = {}
+            channels: map[str, ActivePilot] = {}
             if channels_map is not None and isinstance(channels_map, dict):
                 for channel in channels_map:
                     pilot_id = channels_map[channel]
-                    channels[channel] = pilot_by_id[pilot_id] if pilot_id in pilot_by_id else None
+                    channels[channel] = active_pilots[pilot_id] if pilot_id in active_pilots else None
             return Group(
-                group_id=row['group_id'], pilots=pilots, channels=channels, group_sequence=row['group_sequence'])
+                group_id=row['group_id'],  channels=channels, group_sequence=row['group_sequence'])
 
     def update_groups(self, session):
         """Tworzy nową grupę lub nową wersję istniejącej."""
@@ -400,118 +425,209 @@ class RaceDatabase:
                 (session.session_id,)
             )
             for group in session.groups:
-                pilot_ids = [p.pilot_id for p in group.pilots]
+                #                pilot_ids = [p.pilot_id for p in group.pilots]
                 channels = {}
                 for (k) in group.channels:
                     v = group.channels[k]
                     channels[k] = v.pilot_id
                 conn.execute(
-                    "INSERT INTO session_group (session_id, pilot_ids, channel_map, group_sequence ) VALUES (?, ?, ?, ?)",
-                    (session.session_id,  json.dumps(pilot_ids),
+                    "INSERT INTO session_group (session_id, channel_map, group_sequence ) VALUES (?, ?, ?)",
+                    (session.session_id,
                      json.dumps(channels), group.group_sequence,)
                 )
 
     # --- OBSŁUGA BIEGÓW (Heats) ---
-    def create_heat(self, session_id: str, heat_number: int, group_id: int, pilots_data: dict):
+    def create_or_update_heat(self, heat: Heat, active_pilots: dict[int, ActivePilot]):
         """
-        Tworzy nowy rekord w tabeli heat. 
+        Tworzy nowy rekord w tabeli heat.
         Status domyślnie ustawiony na 'INIT' przez schemat bazy.
         """
-        query = """
-            INSERT INTO heat (
-                session_id, 
-                heat_number, 
-                group_id, 
-                heat_pilots_data_json
-            ) VALUES (?, ?, ?, ?)
-        """
-        # Konwertujemy słownik pilotów na string JSON
-        pilots_json = json.dumps(pilots_data)
+        if not heat:
+            return
 
+#        print(f"Saving or updating heat: {heat}")
+
+        channels = {}
+        for v in heat.channels.keys():
+            channels[v] = {
+                "pilot_id": heat.channels[v].pilot_id,
+                "vtx_channel": heat.channels[v].vtx,
+                "is_digital": heat.channels[v].is_digital
+            }
+        created_at = heat.created_at.timestamp() if heat.created_at else None
+        prep_started_at = heat.prep_started_at.timestamp() if heat.prep_started_at else None
+        flight_started_at = heat.flight_started_at.timestamp(
+        ) if heat.flight_started_at else None
+        finished_at = heat.finished_at.timestamp() if heat.finished_at else None
+        remaining_seconds_at_pause = heat.remaining_seconds_at_pause
+        last_resume_at = heat.last_resume_at.timestamp() if heat.last_resume_at else None
+        search = self.get_heat_by_number(
+            heat.session_id, heat.heat_number, active_pilots)
+
+        if not search:
+            query_heat = """
+                INSERT INTO heat (
+                    group_id, status, channels_json,
+                    prep_time, flight_time,
+                    created_at , prep_started_at, flight_started_at, finished_at,
+                    remaining_seconds_at_pause, last_resume_at,
+                    session_id, heat_number
+                ) VALUES (
+                    ?, ?, ?,
+                    ?,?,
+                    ? , ?,?,?,
+                    ?, ?,
+                    ?, ?
+                )
+            """
+            query_pilots = """
+                insert into pilot_heat (
+                    vtx_channel, vtx_type, 
+                    started_at, finished_at, flight_time,
+                    status,
+                    session_id ,heat_number, pilot_id)
+                values (
+                    ?, ?, 
+                    ?, ?, ?,
+                    ?,
+                    ? ,?,?)
+                """
+        else:
+            query_heat = """
+                update  heat set
+                     group_id=?, status=?, channels_json=?,
+                     prep_time =? , flight_time=?,
+                    created_at=? , prep_started_at=?, flight_started_at=?, finished_at=?,
+                    remaining_seconds_at_pause=?, last_resume_at=?
+            where
+                    session_id=? and  heat_number=?
+            """
+            query_pilots = """
+                update pilot_heat set
+                    vtx_channel=?, vtx_type=?, 
+                    started_at=?, finished_at=?, flight_time=?,
+                    status=?
+                where
+                    session_id=? and heat_number=? and pilot_id=?
+                """
+
+        params = (heat.group_id, heat.status, json.dumps(channels),
+                  heat.prep_time, heat.flight_time,
+                  created_at, prep_started_at, flight_started_at, finished_at,
+                  remaining_seconds_at_pause, last_resume_at, heat.session_id, heat.heat_number)
         with self._get_conn() as conn:
-            try:
-                conn.execute(
-                    query, (session_id, heat_number, group_id, pilots_json))
-                conn.commit()
-                return True
-            except sqlite3.IntegrityError:
-                # Obsługa przypadku, gdy para session_id + heat_number już istnieje
-                return False
-
-    def update_heat(self, session_id: str, heat_number: int, update_data: dict):
-        """
-        Aktualizuje dynamiczne dane biegu.
-        update_data może zawierać: heat_status, heat_prep_started_at, 
-        heat_flight_started_at, heat_finished_at, heat_remaining_seconds_at_pause,
-        heat_last_resume_at.
-        """
-        if not update_data:
-            return False
-
-        # Budujemy zapytanie dynamicznie na podstawie kluczy w słowniku
-        # Filtrujemy tylko te klucze, które zaczynają się od 'heat_' dla bezpieczeństwa
-        allowed_keys = [
-            'heat_status', 'heat_prep_started_at', 'heat_flight_started_at',
-            'heat_finished_at', 'heat_remaining_seconds_at_pause', 'heat_last_resume_at'
-        ]
-
-        fields_to_update = []
-        values = []
-
-        for key, value in update_data.items():
-            if key in allowed_keys:
-                fields_to_update.append(f"{key} = ?")
-                values.append(value)
-
-        if not fields_to_update:
-            return False
-
-        # Dodajemy parametry klucza złożonego na koniec listy wartości
-        query = f"UPDATE heat SET {', '.join(fields_to_update)} WHERE session_id = ? AND heat_number = ?"
-        values.extend([session_id, heat_number])
-
-        with self._get_conn() as conn:
-            cursor = conn.execute(query, values)
+            conn.execute(query_heat, params)
             conn.commit()
-            return cursor.rowcount > 0
 
-    def get_active_heats(self, session_id: str):
+        for k in heat.channels.keys():
+            v = heat.channels[k]
+            pilot_id = v.pilot_id
+            vtx_channel = k
+            pilot_params = (vtx_channel, v.vtx,
+                            flight_started_at, finished_at, heat.flight_time,
+                            heat.status, heat.session_id, heat.heat_number, pilot_id, )
+#            print(
+#                f"Updating or inserting pilot into heats: {pilot_params} with sql: {query_pilots}")
+            with self._get_conn() as conn:
+                conn.execute(query_pilots, pilot_params)
+                conn.commit()
+
+    def get_active_heats(self, session_id: str, active_pilots: dict[int, ActivePilot]):
         """
-        Pobiera listę wszystkich heat-ów dla danej sesji, 
-        które nie zostały jeszcze zakończone (status inny niż 'FINISHED').
+        Pobiera listę wszystkich heat-ów dla danej sesji,
+        które nie zostały jeszcze zakończone(status inny niż 'FINISHED').
         Wyniki są sortowane po numerze heat-u.
         """
         query = """
-            SELECT 
+             SELECT
                 session_id,
-                heat_number,
-                group_id,
-                heat_status,
-                heat_pilots_data_json,
-                heat_prep_started_at,
-                heat_flight_started_at,
-                heat_remaining_seconds_at_pause,
-                heat_last_resume_at
+                heat_number
             FROM heat
-            WHERE session_id = ? AND heat_status != 'FINISHED'
+            WHERE session_id = ? AND status != 'FINISHED'
             ORDER BY heat_number ASC
         """
 
-        with self.get_connection() as conn:
+        with self._get_conn() as conn:
             cursor = conn.execute(query, (session_id,))
             rows = cursor.fetchall()
 
             # Przekształcamy sqlite3.Row na listę słowników i parsujemy JSON-a
-            active_heats = []
+            active_heats: list[Heat] = []
             for row in rows:
-                heat_dict = dict(row)
-                # Opcjonalnie: od razu parsujemy JSON-a z danymi pilotów
-                if heat_dict['heat_pilots_data_json']:
-                    heat_dict['pilots_data'] = json.loads(
-                        heat_dict['heat_pilots_data_json'])
-                active_heats.append(heat_dict)
 
+                heat = self.get_heat_by_number(
+                    row["session_id"], row["heat_number"], active_pilots)
+                if heat:
+                    active_heats.append(heat)
             return active_heats
+
+    def get_heat_by_number(self, session_id: str, heat_number: int, active_pilots: dict[int, ActivePilot]):
+        """
+        Pobiera listę wszystkich heat-ów dla danej sesji,
+        które nie zostały jeszcze zakończone(status inny niż 'FINISHED').
+        Wyniki są sortowane po numerze heat-u.
+        """
+        query = """
+            SELECT
+                session_id,
+                heat_number,
+                group_id,
+                status,
+                prep_time ,
+                flight_time,
+
+                channels_json,
+                created_at,
+                prep_started_at,
+                flight_started_at,
+                finished_at,
+                remaining_seconds_at_pause,
+                last_resume_at
+            FROM heat
+            WHERE session_id = ? AND heat_number = ?
+        """
+
+        with self._get_conn() as conn:
+            cursor = conn.execute(query, (session_id, heat_number,))
+            row = cursor.fetchone()
+
+            if not row:
+                return None
+
+            channels_dict = json.loads(row["channels_json"])
+            channels: map[str, ActivePilot] = {}
+            for (k) in channels_dict.keys():
+                v = channels_dict[k]
+                pilot_id = v["pilot_id"] if "pilot_id" in v else None
+                if pilot_id and pilot_id in active_pilots:
+                    channels[k] = active_pilots[pilot_id]
+
+            prep_started_at = datetime.fromtimestamp(
+                row["prep_started_at"]) if row["prep_started_at"] else None
+            flight_started_at = datetime.fromtimestamp(
+                row["flight_started_at"]) if row["flight_started_at"] else None
+            finished_at = datetime.fromtimestamp(
+                row["finished_at"]) if row["finished_at"] else None
+            last_resume_at = datetime.fromtimestamp(
+                row["last_resume_at"]) if row["last_resume_at"] else None
+
+            heat = Heat(
+                session_id=row["session_id"],
+                heat_number=row["heat_number"],
+                prep_time=row["prep_time"],
+                flight_time=row["flight_time"],
+                group_id=row["group_id"],
+                channels=channels,
+                status=row["status"],
+
+                prep_started_at=prep_started_at,
+                flight_started_at=flight_started_at,
+                finished_at=finished_at,
+
+                remaining_seconds_at_pause=row["remaining_seconds_at_pause"],
+                last_resume_at=last_resume_at
+            )
+            return heat
 
     # --- ADMINISTRACJA ---
 
@@ -539,39 +655,10 @@ class RaceDatabase:
 
     # ----------- Obsługa heatów
 
-    def get_heat_by_number(self, session_id: str, heat_number: int):
-        with self._get_conn() as conn:
-            row = conn.execute(
-                "SELECT * FROM heat WHERE session_id = ? AND heat_number = ?",
-                (session_id, heat_number,)
-            ).fetchone()
-            if row:
-                return Heat(
-                    session_id=row['session_id'],
-                    heat_number=row['heat_number'],
-                    group_id=row['group_id'],
-                    group=self.get_group_by_id(row['group_id']),
-                    name=row['name'],
-                    status=row['status'],
-                    flight_duration_sec=row["flight_duration_sec"],
-                    prep_duration_sec=row["prep_duration_sec"],
-                    pilots_data=json.loads(row['pilots_data_json']),
-                    is_active=row['is_active'],
-                    prep_started_at=row['prep_started_at'],
-                    flight_started_at=row['flight_started_at'],
-                    finished_at=row['finished_at'],
-                    current_group_id=row['current_group_id'],
-                    current_group_index=row['current_group_index'],
-                    next_heat_number=row['next_heat_number'],
-                    current_phase=row["current_phase"],
-                    phase_before_pause=row["phase_before_pause"]
-                )
-            return None
-
 
 db_instance = RaceDatabase()
 
 
 def get_db():
-    """ Funkcja pomocnicza do uzyskania instancji bazy danych (np. dla FastAPI) """
+    """ Funkcja pomocnicza do uzyskania instancji bazy danych(np. dla FastAPI) """
     return db_instance

@@ -178,7 +178,7 @@
                 function createPilotCard(pilot, groupSeq, channel) {
                     const div = document.createElement('div');
                     div.className = `pilot-card`;
-                    div.innerHTML = `<strong>${pilot.name}</strong><br><small>${pilot.vtx_type}</small>`;
+                    div.innerHTML = `<strong>${pilot.pilot.name}</strong><br><small>${pilot.vtx}</small>`;
 
                     return div;
                 }
@@ -196,8 +196,8 @@
                         return `
                                 <td class="pilot-cell">
                                     ${p ? `
-                                        <span class="pilot-name">${p.name}</span>
-                                        <span class="vtx-tag">${p.vtx_type}</span>
+                                        <span class="pilot-name">${p.pilot_name}</span>
+                                        <span class="vtx-tag">${p.vtx}</span>
                                     ` : '<span class="empty-slot">---</span>'}
                                 </td>
                             `;

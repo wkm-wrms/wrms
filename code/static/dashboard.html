@@ -344,14 +344,13 @@
             // Current ilots Grid Logic
             CHANNELS.forEach(ch => {
                 const slot = document.getElementById(`slot-${ch}`);
-                const pilot = heat.pilots_data[ch];
+                const pilot = heat.channels[ch];
                 const content = slot.querySelector('.pilot-content');
-
                 if (pilot) {
                     slot.classList.add('active');
                     content.innerHTML = `
-                    <div class="pilot-name">${pilot.name}</div>
-                    <div class="vtx-info">${pilot.vtx_type}</div>
+                    <div class="pilot-name">${pilot.pilot.name}</div>
+                    <div class="vtx-info">${pilot.vtx}</div>
                 `;
                 } else {
                     slot.classList.remove('active');
@@ -362,19 +361,19 @@
             const next_heat = response.next_heat;
             const container = document.getElementById('next-pilots-list');
 
-            if (!next_heat) {
+            if (!next_heat || !next_heat.channels) {
                 container.innerHTML = '<span style="color:#444">Brak zaplanowanych kolejnych biegów</span>';
                 return;
             }
 
-            const pilots = next_heat.pilots_data;
+            const pilots = next_heat.channels;
             const html = CHANNELS.map(ch => {
                 const p = pilots[ch];
                 if (!p) return '';
                 return `
                 <div class="next-pilot-item">
                     <span class="next-ch">${ch}</span>
-                    <span class="next-name">${p.name}</span>
+                    <span class="next-name">${p.pilot.name}</span>
                 </div>
             `;
             }).join('');

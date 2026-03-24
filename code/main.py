@@ -3,7 +3,7 @@ from typing import List
 import asyncio
 import json
 
-from fastapi import FastAPI
+from fastapi import FastAPI, BackgroundTasks, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from sse_starlette.sse import EventSourceResponse
@@ -44,6 +44,22 @@ app = FastAPI(title="WKM Racing Management System API", lifespan=lifespan)
 app.include_router(api_router)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+@app.middleware("http")
+async def add_process_loop(request, call_next):
+    session = get_session()
+    if session:
+        res = session.loop()
+        if res:
+            db.create_or_update_heat(
+                session.current_heat, session.active_pilots)
+            db.create_or_update_heat(session.next_heat, session.active_pilots)
+            if len(session._archive_heats) > 0:
+                db.create_or_update_heat(
+                    session._archive_heats.pop(), session.active_pilots)
+    response = await call_next(request)
+    return response
 
 
 @app.get("/")

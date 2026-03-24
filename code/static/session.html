@@ -489,6 +489,24 @@
                 </div>
                 <button class="btn btn-primary" onclick="createSession()">Utwórz Sesję</button>
             </div>
+            <div id="view-started" class="view">
+                <div id="timerDisplay">00:00</div>
+
+                <div class="grid">
+                    <div class="card" style="margin:0; border:1px solid #eee;">
+                        <h3>Aktualny Bieg</h3>
+                        <div id="currentHeatDisplay">Grupa 1 - Oczekiwanie na start</div>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <button id="btnPause" class="btn btn-warning" onclick="pauseSession()">PAUZA</button>
+                        <button id="btnResume" class="btn btn-success" onclick="resumeSession()"
+                            style="display:none">WZNÓW</button>
+                        <button class="btn btn-primary" onclick="nextHeat()">NASTĘPNY BIEG</button>
+                        <button class="btn btn-danger" onclick="terminateSession()">ZAKOŃCZ SESJĘ</button>
+                    </div>
+                </div>
+            </div>
+
 
             <div id="view-prep" class="view">
                 <div style="display: flex; justify-content: space-between;">
@@ -548,23 +566,6 @@
             </section>
         </div>
 
-        <div id="view-started" class="view">
-            <div id="timerDisplay">00:00</div>
-
-            <div class="grid">
-                <div class="card" style="margin:0; border:1px solid #eee;">
-                    <h3>Aktualny Bieg</h3>
-                    <div id="currentHeatDisplay">Grupa 1 - Oczekiwanie na start</div>
-                </div>
-                <div style="display: flex; flex-direction: column; gap: 10px;">
-                    <button id="btnPause" class="btn btn-warning" onclick="pauseSession()">PAUZA</button>
-                    <button id="btnResume" class="btn btn-success" onclick="resumeSession()"
-                        style="display:none">WZNÓW</button>
-                    <button class="btn btn-primary" onclick="nextHeat()">NASTĘPNY BIEG</button>
-                    <button class="btn btn-danger" onclick="terminateSession()">ZAKOŃCZ SESJĘ</button>
-                </div>
-            </div>
-        </div>
     </div>
     </div>
     <div id="groupModal" class="modal-overlay">
@@ -622,11 +623,10 @@
 
             if (data.status === "ok" && data.session) {
                 const s = data.session;
-                if (s.current_phase === 'IDLE') {
-                    document.getElementById('view-prep').classList.add('active');
-                    document.getElementById('prepTitle').innerText = s.name;
-                    loadSessionData();
-                } else if (s.current_phase === 'PREP' || s.current_phase == 'PREP' || s.current_phase == 'PAUSED') {
+                document.getElementById('view-prep').classList.add('active');
+                document.getElementById('prepTitle').innerText = s.name;
+                loadSessionData();
+                if (s.current_phase === 'FLIGHT') {
                     document.getElementById('view-started').classList.add('active');
                     isPaused = s.is_paused;
                     syncTimer(s.live_remaining_seconds, s.is_paused);
@@ -764,11 +764,17 @@
             try {
                 const resP = await fetch('/api/session');
                 const dataP = await resP.json();
-                document.getElementById('activePilotsList').innerHTML = dataP.session.active_pilots.map(p => `
-                <div class="item">
-                    ${p.pilot.name} (${p.vtx}) <button class="btn btn-danger btn-sm" onclick="removePilot(${p.pilot.id})">×</button>
-                </div>
-                `).join('');
+                html = '';
+
+                for (let pilotId in dataP.session.active_pilots) {
+                    const p = dataP.session.active_pilots[pilotId];
+                    html += `
+                    <div class="item">
+                        ${p.pilot.name} (${p.vtx}) <button class="btn btn-danger btn-sm" onclick="removePilot(${p.pilot_id})">×</button>
+                    </div>`;
+                }
+
+                document.getElementById('activePilotsList').innerHTML = html;
 
             } catch (err) {
                 alert("Błąd: " + err.message);
@@ -842,7 +848,7 @@
                     if (pilot) {
                         const pilotDiv = document.createElement('div');
                         pilotDiv.draggable = true;
-                        pilotDiv.innerHTML = `<strong>${pilot.name}</strong><br><small>${pilot.vtx_type}</small>`;
+                        pilotDiv.innerHTML = `<strong>${pilot.pilot.name}</strong><br><small>${pilot.vtx}</small>`;
 
                         // Dane identyfikacyjne dla przeciąganego elementu
                         pilotDiv.ondragstart = (e) => {

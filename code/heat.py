@@ -4,19 +4,21 @@ from datetime import datetime
 import json
 
 from pilot import Pilot
+from activepilot import ActivePilot
 from group import Group
 
 
-class HeatModel (BaseModel):
+class Heat(BaseModel):
     session_id: str
     heat_number: int
-    group_id: int
-
     prep_time: int
     flight_time: int
 
+    group_id: int
+
+    channels: dict[str, ActivePilot]
+
     status: str = "PLANNED"  # PLANNED, PREP, FLIGHT, PAUSED, FINISHED
-    pilots_data: dict
     created_at: datetime
     prep_started_at: Optional[datetime] = None
     flight_started_at: Optional[datetime] = None
@@ -25,85 +27,91 @@ class HeatModel (BaseModel):
     remaining_seconds_at_pause: Optional[float] = None
     last_resume_at: Optional[datetime] = None
 
+    def __init__(self, session_id: str, heat_number: int, prep_time: int, flight_time: int,
+                 group_id: int = None, group: Group = None, channels: dict[str, ActivePilot] = None, status: str = "PLANNED",
+                 created_at: datetime = datetime.now(),
+                 prep_started_at: Optional[datetime] = None, flight_started_at: Optional[datetime] = None,
+                 finished_at: Optional[datetime] = None, remaining_seconds_at_pause: Optional[float] = None,
+                 last_resume_at: Optional[datetime] = None
+                 ):
 
-class Heat:
-    data: HeatModel
-    pilots: List[Pilot] = []
-    channels: dict[str, Pilot]
+        if group_id is None:
+            if group:
+                group_id = group.group_id
+            else:
+                raise ValueError("Podaj albo group_id albo group")
+        if channels is None:
+            if group:
+                channels = group.channels
 
-    def __init__(self, group: Group, session_id: str, heat_number: int, prep_time: int, flight_time: int):
-        pilot_data = {}
-        for ch in group.channels:
-            pilot_data[ch] = {
-                "pilot_id": group.channels[ch].pilot_id,
-                "name": group.channels[ch].name,
-            }
-        self.data = HeatModel(
+        super().__init__(
             session_id=session_id,
-            group_id=group.group_id,
             heat_number=heat_number,
-            status='PLANNED',
-            pilots_data=pilot_data,
-            created_at=datetime.now(),
             prep_time=prep_time,
-            flight_time=flight_time
-        )
-        self.pilots = group.pilots,
-        self.channels = group.channels,
+            flight_time=flight_time,
+            group_id=group_id,
+            channels=channels,
+            status=status,
+            created_at=created_at,
+            prep_started_at=prep_started_at,
+            flight_started_at=flight_started_at,
+            finished_at=finished_at,
+            remaining_seconds_at_pause=remaining_seconds_at_pause,
+            last_resume_at=last_resume_at)
 
     def start_prep(self):
-        self.data.status = 'PREP'
-        self.data.prep_started_at = datetime.now()
+        self.status = 'PREP'
+        self.prep_started_at = datetime.now()
 
     def start_flight(self):
-        self.data.status = 'FLIGHT'
-        self.data.flight_started_at = datetime.now()
+        self.status = 'FLIGHT'
+        self.flight_started_at = datetime.now()
 
     def finish(self):
-        self.data.status = 'FINISHED'
-        self.data.finished_at = datetime.now()
+        self.status = 'FINISHED'
+        self.finished_at = datetime.now()
 
     def pause(self):
-        if self.data.status != 'FLIGHT':
+        if self.status != 'FLIGHT':
             raise ValueError("Nie mozna zatrzymac fazy przygotowania")
-        self.data.remaining_seconds_at_pause = self.get_remaining_seconds()
-        self.data.status = 'PAUSED'
+        self.remaining_seconds_at_pause = self.get_remaining_seconds()
+        self.status = 'PAUSED'
 
     def resume(self):
-        self.data.last_resume_at = datetime.now()
-        self.data.status = 'FLIGHT'
+        self.last_resume_at = datetime.now()
+        self.status = 'FLIGHT'
 
     def get_remaining_seconds(self):
-        if self.data.status == 'PLANNED':
-            return self.data.prep_time
-        elif self.data.status == 'PREP':
-            return self.data.prep_time - (datetime.now() - self.data.prep_started_at).total_seconds()
-        elif self.data.status == 'FLIGHT':
-            if self.data.last_resume_at is not None:
-                return self.data.remaining_seconds_at_pause - (datetime.now() - self.data.last_resume_at).total_seconds()
+        if self.status == 'PLANNED':
+            return self.prep_time
+        elif self.status == 'PREP':
+            return self.prep_time - (datetime.now() - self.prep_started_at).total_seconds()
+        elif self.status == 'FLIGHT':
+            if self.last_resume_at is not None:
+                return self.remaining_seconds_at_pause - (datetime.now() - self.last_resume_at).total_seconds()
             else:
-                return self.data.flight_time - (datetime.now() - self.data.flight_started_at).total_seconds()
-        elif self.data.status == 'PAUSED':
-            return self.data.remaining_seconds_at_pause
-        elif self.data.status == 'FINISHED':
+                return self.flight_time - (datetime.now() - self.flight_started_at).total_seconds()
+        elif self.status == 'PAUSED':
+            return self.remaining_seconds_at_pause
+        elif self.status == 'FINISHED':
             return 0
 
     # Getters block
 
     def get_status(self):
-        return self.data.status
+        return self.status
 
     def get_last_resume_at(self):
-        return self.data.last_resume_at
+        return self.last_resume_at
 
     def get_flight_started_at(self):
-        return self.data.flight_started_at
+        return self.flight_started_at
 
     def get_prep_started_at(self):
-        return self.data.prep_started_at
+        return self.prep_started_at
 
     def remaining_seconds_at_pause(self):
-        return self.data.remaining_seconds_at_pause
+        return self.remaining_seconds_at_pause
 
     def as_dict(self):
-        return self.data.dict()
+        return self.dict()

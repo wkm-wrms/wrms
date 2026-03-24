@@ -85,7 +85,10 @@ async def start_session():
         res = session.start()
     except ValueError as e:
         return {"status": "error", "message": f"Błąd startu sesji: {e}"}
+    db.create_or_update_heat(session.current_heat, session.active_pilots)
+    db.create_or_update_heat(session.next_heat, session.active_pilots)
     db.save_session_data(session)
+
     return {"status": "ok", "message": f"Sesja {session.name} rozpoczęta.", "result": res}
 
 
@@ -94,6 +97,9 @@ async def stop_session():
     session = get_session()
     session.stop()
     db.save_session_data(session)
+    db.create_or_update_heat(session.current_heat, session.active_pilots)
+    db.create_or_update_heat(session.next_heat, session.active_pilots)
+    current_session = None
     set_session(None)
     return {"status": "ok", "message": "Sesja zakończona."}
 
@@ -108,6 +114,8 @@ async def pause_timer():
 
     session.pause()
     db.save_session_data(session)
+    db.create_or_update_heat(session.current_heat, session.active_pilots)
+    db.create_or_update_heat(session.next_heat, session.active_pilots)
     return {"status": "ok", "message": "Sesja wstrzymana."}
     if state.current_phase in ("PREP", "FLIGHT"):
         state.phase_before_pause = state.current_phase
@@ -133,6 +141,10 @@ async def resume_timer():
         "PREP", "FLIGHT") else "PREP"
     state.timer_running = True
     await manager.broadcast({"type": "session_resumed"})
+    db.save_session_data(session)
+    db.create_or_update_heat(session.current_heat, session.active_pilots)
+    db.create_or_update_heat(session.next_heat, session.active_pilots)
+
     return {"status": "ok", "message": "Sesja wznowiona."}
 
 
@@ -156,6 +168,10 @@ async def skip_phase():
         message = "Pominięto przelot, przechodzę do następnej grupy."
 
     await manager.broadcast({"type": "phase_skipped"})
+    db.save_session_data(session)
+    db.create_or_update_heat(session.current_heat, session.active_pilots)
+    db.create_or_update_heat(session.next_heat, session.active_pilots)
+
     return {"status": "ok", "message": message}
 
 

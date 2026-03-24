@@ -42,7 +42,8 @@ def process_heat_data(heat: Heat) -> Dict[str, Any]:
     return {
         "status": heat.get_status(),
         "live_seconds_left": seconds_left,
-        "pilots_data": heat.data.pilots_data,
+        "channels": heat_data['channels'],
+
     }
 
 # --- Endpointy ---

@@ -73,4 +73,5 @@ async def post_move_pilot(move: PilotMove):
 #    if group_from is None:
 #        raise HTTPException(
 #            status_code=404, detail="Pilot nie jest w zadnej grupie")
+    db.update_groups(session)
     return {"status": "ok", "groups": session.groups}
