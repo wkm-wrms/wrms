@@ -30,6 +30,7 @@
             text-transform: uppercase;
             letter-spacing: 2px;
             margin-bottom: 20px;
+
         }
 
         .table-container {
@@ -41,22 +42,24 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            text-align: left;
-            font-size: 1.1rem;
+            text-align: center;
+            font-size: clamp(1rem, 1.5vw, 3rem);
+
         }
 
         th {
             background-color: var(--header-bg);
             color: var(--accent);
-            padding: 15px;
+            padding: 10px;
             font-weight: 600;
             text-transform: uppercase;
             font-size: 0.9rem;
             border-bottom: 2px solid #333;
+            text-align: center;
         }
 
         td {
-            padding: 12px 15px;
+            padding: 10px 10px;
             border-bottom: 1px solid #222;
         }
 
@@ -65,7 +68,7 @@
         }
 
         /* Wyróżnienie aktualnego biegu */
-        tr.active-heat {
+        tr.active-group {
             background-color: var(--current-row);
             border-left: 4px solid var(--accent);
         }
@@ -124,7 +127,7 @@
         <table>
             <thead>
                 <tr>
-                    <th>Bieg</th>
+                    <th>Grupa</th>
                     <th>R1</th>
                     <th>R3</th>
                     <th>R6</th>
@@ -149,15 +152,20 @@
                     return;
                 }
                 const groups = data.session.groups;
-                const currentHeatNum = data.current_heat ? data.current_heat.heat_number : -1;
+                const currentGroup = data.session.current_group_index;
                 const tbody = document.getElementById('groups-body');
 
                 const channels = ["R1", "R3", "R6", "R7"];
 
+                groupIndex = 0;
+
                 groups.forEach(g => {
                     const tr = document.createElement('tr');
-                    tr.innerHTML = `<td class="group-number-cell">G${g.group_sequence}</td>`;
+                    tr.innerHTML = `<td class="group-number-cell">${g.group_sequence}</td>`;
 
+                    if (groupIndex == currentGroup) {
+                        tr.classList.add('active-group');
+                    }
                     channels.forEach(ch => {
                         const td = document.createElement('td');
                         td.className = 'pilot-slot';
@@ -172,6 +180,7 @@
                         tr.appendChild(td);
                     });
                     tbody.appendChild(tr);
+                    groupIndex++;
                 });
 
 
@@ -182,29 +191,6 @@
 
                     return div;
                 }
-
-
-
-                tbody.innerHTML = data.all_heats.map(heat => {
-                    const isActive = heat.heat_number === currentHeatNum;
-
-                    return `
-                    <tr class="${isActive ? 'active-heat' : ''}">
-                        <td class="heat-no">#${heat.heat_number} ${isActive ? '🔥' : ''}</td>
-                        ${CHANNELS.map(ch => {
-                        const p = heat.pilots_data[ch];
-                        return `
-                                <td class="pilot-cell">
-                                    ${p ? `
-                                        <span class="pilot-name">${p.pilot_name}</span>
-                                        <span class="vtx-tag">${p.vtx}</span>
-                                    ` : '<span class="empty-slot">---</span>'}
-                                </td>
-                            `;
-                    }).join('')}
-                    </tr>
-                `;
-                }).join('');
 
             } catch (e) {
                 console.error("Groups Load Error:", e);

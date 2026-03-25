@@ -52,35 +52,45 @@
             text-align: center;
             position: absolute;
             top: 0%;
-            height: 40%;
+
+            height: 15%;
             width: 100%;
         }
 
         #flight-number {
-            font-size: 2vw;
-
+            font-size: clamp(2rem, 3vw, 5rem);
+            ;
             letter-spacing: 8px;
             color: var(--accent);
-            margin-bottom: -10px;
             text-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
-
         }
 
         #status-label {
-            font-size: 4vw;
+            font-size: clamp(2rem, 4vw, 5rem);
             text-transform: uppercase;
             letter-spacing: 8px;
             color: var(--accent);
-            margin-bottom: -10px;
+            margin-bottom: 0px;
             text-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
         }
 
         #timer {
-            font-size: 15vw;
+            font-size: clamp(8rem, 15vw, 15rem);
             font-weight: 900;
             line-height: 1;
             font-variant-numeric: tabular-nums;
             transition: color 0.3s ease;
+
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            position: absolute;
+            top: 15%;
+            height: 35%;
+            width: 100%;
         }
 
 
@@ -136,14 +146,14 @@
         }
 
         .channel-label {
-            font-size: 3vw;
+            font-size: clamp(1rem, 3vw, 2rem);
             color: #666;
             font-weight: bold;
             margin-bottom: 8px;
         }
 
         .pilot-name {
-            font-size: 3vw;
+            font-size: clamp(1rem, 3vw, 2rem);
             font-weight: bold;
             color: #fff;
             white-space: nowrap;
@@ -152,7 +162,7 @@
         }
 
         .vtx-info {
-            font-size: 1vw;
+            font-size: clamp(0.5rem, 1.vw, 1rem);
             color: var(--accent);
             opacity: 0.8;
             margin-top: 5px;
@@ -212,14 +222,15 @@
         }
 
         .next-channel-label {
-            font-size: 2vw;
+            font-size: clamp(1rem, 2vw, 1.8rem);
             color: #666;
             font-weight: bold;
             margin-bottom: 2px;
         }
 
         .next-pilot-name {
-            font-size: 2vw;
+            font-size: clamp(1rem, 2vw, 1.8rem);
+            ;
             font-weight: bold;
             color: #888;
             white-space: nowrap;
@@ -228,7 +239,7 @@
         }
 
         .next-vtx-info {
-            font-size: 1.5vw;
+            font-size: clamp(0.8rem, 1.8vw, 1.5rem);
             color: #888;
             opacity: 0.8;
 
@@ -259,7 +270,7 @@
             padding: 12px 35px;
             border: none;
             border-radius: 6px;
-            font-size: 2vw;
+            font-size: clamp(1rem, 2vw, 1.5rem);
             cursor: pointer;
             font-weight: bold;
             text-transform: uppercase;
@@ -315,10 +326,8 @@
     <div class="top-section">
         <div id="flight-number"></div>
         <div id="status-label">ŁADOWANIE...</div>
-
-        <div id="timer">00:00</div>
     </div>
-
+    <div id="timer">00:00</div>
     <div class="pilot-grid">
         <div class="pilot-card" id="slot-R1">
             <div class="channel-label">R1</div>
