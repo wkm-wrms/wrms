@@ -336,6 +336,26 @@ class Session(BaseModel):
 
         return {"status": "ok", "groups": self.groups}
 
+    def add_new_group(self):
+        if self.groups is None:
+            self.groups = []
+        self.groups.append(Group(group_id=len(self.groups)+1,  channels={},
+                           group_sequence=len(self.groups)+1))
+
+        return {"status": "ok", "groups": self.groups}
+
+    def remove_group(self, group_sequence: int):
+        if self.groups is None:
+            return {"status": "error", "message": "Brak grup"}
+        if group_sequence < 1 or group_sequence > len(self.groups):
+            return {"status": "error", "message": "Niepoprawna grupa"}
+        index = group_sequence
+        while index < len(self.groups):
+            self.groups[index].group_sequence -= 1
+            index += 1
+        self.groups.pop(group_sequence-1)
+        return {"status": "ok", "groups": self.groups}
+
     def rebalance_groups(self):
         total_pilots = len(self.active_pilots)
         if total_pilots == 0:

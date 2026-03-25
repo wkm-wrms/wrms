@@ -550,7 +550,7 @@
 
             <section class="card paddock-section">
                 <section class="card">
-                    <h3>Harmonogram Grup</h3>
+                    <h3>Harmonogram Grup</h3><button class="btn btn-primary" onClick="newGroup();">Nowa Grupa</button>
                     <table class="race-table">
                         <thead>
                             <tr>
@@ -778,7 +778,7 @@
                     const p = dataP.session.active_pilots[pilotId];
                     html += `
                     <div class="item">
-                        ${p.pilot.name} (${p.vtx}) <button class="btn btn-danger btn-sm" onclick="removePilot(${p.pilot_id})">×</button>
+                        ${p.pilot.name} (${p.vtx}) <button class="btn btn-sm btn-danger btn-sm" onclick="removePilot(${p.pilot_id})">×</button>
                     </div>`;
                 }
 
@@ -911,7 +911,7 @@
 
             groups.forEach(g => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `<td class="group-number-cell">G${g.group_sequence}</td>`;
+                tr.innerHTML = `<td class="group-number-cell">G${g.group_sequence} <button class="btn btn-sm btn-danger" onClick="removeGroup(${g.group_sequence});">Usuń</button></td>`;
 
                 channels.forEach(ch => {
                     const td = document.createElement('td');
@@ -1002,6 +1002,57 @@
             }, 500)
 
         }
+
+
+        async function removeGroup(group_sequence) {
+            if (confirm("Czy na pewno chcesz usunąć grupę " + group_sequence + "?")) {
+                try {
+                    const res = await fetch('/api/groups/delete', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            group_sequence: group_sequence
+                        })
+                    });
+
+                    const data = await res.json();
+                    if (data.status === "ok") {
+
+                        loadSessionData(); // Odśwież widok
+                    } else {
+                        alert(data.message || "Błąd przenoszenia");
+                    }
+
+                } catch (err) {
+                    console.error("Błąd sieci:", err);
+                }
+            }
+        }
+
+        async function newGroup() {
+            try {
+                const res = await fetch('/api/groups/new', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+
+                    })
+                });
+
+                const data = await res.json();
+                if (data.status === "ok") {
+
+                    loadSessionData(); // Odśwież widok
+                } else {
+                    alert(data.message || "Błąd przenoszenia");
+                }
+
+            } catch (err) {
+                console.error("Błąd sieci:", err);
+            }
+        }
+
+
         window.onload = updateUI;
     </script>
 </body>

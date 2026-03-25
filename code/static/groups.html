@@ -10,6 +10,9 @@
             --success: #28a745;
             --dark: #343a40;
             --light: #f8f9fa;
+            --danger: #dc3545;
+            --warning: #ffc107;
+
         }
 
         body {
@@ -115,6 +118,61 @@
         h3 {
             margin-top: 0;
         }
+
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.2s;
+            font-size: 14px;
+            color: white;
+        }
+
+        .btn:hover {
+            filter: brightness(90%);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+        }
+
+        .btn-success {
+            background: var(--success);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+        }
+
+        .btn-warning {
+            background: var(--warning);
+            color: #212529;
+        }
+
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+
+        button {
+            padding: 8px 15px;
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        button.secondary {
+            background: #6c757d;
+        }
     </style>
 </head>
 
@@ -123,7 +181,7 @@
     <div class="container">
         <section class="card paddock-section">
             <section class="card">
-                <h3>Harmonogram Grup</h3>
+                <h3>Harmonogram Grup</h3><button class="btn btn-primary" onClick="newGroup();">Nowa Grupa</button>
                 <table class="race-table">
                     <thead>
                         <tr>
@@ -250,7 +308,7 @@
 
             groups.forEach(g => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `<td class="group-number-cell">G${g.group_sequence}</td>`;
+                tr.innerHTML = `<td class="group-number-cell">G${g.group_sequence} <button class="btn btn-sm btn-danger" onClick="removeGroup(${g.group_sequence});">Usuń</button></td>`;
 
                 channels.forEach(ch => {
                     const td = document.createElement('td');
@@ -287,6 +345,68 @@
             div.ondragend = handleDragEnd;
 
             return div;
+        }
+
+
+        async function rebalanceGroups() {
+            const res = await fetch('/api/groups/rebalance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            setTimeout(() => {
+
+                loadSessionData();
+                updateUI();
+            }, 500)
+
+        }
+
+        async function removeGroup(group_sequence) {
+            if (confirm("Czy na pewno chcesz usunąć grupę " + group_sequence + "?")) {
+                try {
+                    const res = await fetch('/api/groups/delete', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            group_sequence: group_sequence
+                        })
+                    });
+
+                    const data = await res.json();
+                    if (data.status === "ok") {
+
+                        loadSessionData(); // Odśwież widok
+                    } else {
+                        alert(data.message || "Błąd przenoszenia");
+                    }
+
+                } catch (err) {
+                    console.error("Błąd sieci:", err);
+                }
+            }
+        }
+
+        async function newGroup() {
+            try {
+                const res = await fetch('/api/groups/new', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+
+                    })
+                });
+
+                const data = await res.json();
+                if (data.status === "ok") {
+
+                    loadSessionData(); // Odśwież widok
+                } else {
+                    alert(data.message || "Błąd przenoszenia");
+                }
+
+            } catch (err) {
+                console.error("Błąd sieci:", err);
+            }
         }
 
         // Start

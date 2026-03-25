@@ -1,6 +1,6 @@
 # Rzeczy, ktory brakue aktualnie w module zarzadzania sesjami treningowymi, wishlisty itp 
 
-* dodawania i usuwanie grup
+* przy tworzeniu heatow, pomijamy puste grupy 
 
 
 * na ekranie administracyjnym zawsze wyswietlac wszystkich pilotow, nie po 2 literach 

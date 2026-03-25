@@ -59,11 +59,36 @@ class PilotMove(BaseModel):
 
 @router.post("/move_pilot")
 async def post_move_pilot(move: PilotMove):
-    print(f"API: move_pilot: {move}")
     session = get_session()
     # Poszukajmy czy pilot jest
     res = session.move_pilot(move.pilot_id, move.from_channel, move.from_group,
                              move.to_channel, move.to_group)
+    db.update_groups(session)
+    db.save_session_data(session)
+    return res
+
+
+@router.post("/new")
+async def post_new_grop():
+    session = get_session()
+    # Poszukajmy czy pilot jest
+
+    res = session.add_new_group()
+    db.update_groups(session)
+    db.save_session_data(session)
+    return res
+
+
+class GroupDelete(BaseModel):
+    group_sequence: int
+
+
+@router.post("/delete")
+async def post_delete_grop(remove: GroupDelete):
+    session = get_session()
+    # Poszukajmy czy pilot jest
+
+    res = session.remove_group(group_sequence=remove.group_sequence)
     db.update_groups(session)
     db.save_session_data(session)
     return res
