@@ -58,7 +58,7 @@
         }
 
         #flight-number {
-            font-size: clamp(2rem, 3vw, 5rem);
+            font-size: clamp(2rem, 3vw, 4rem);
             ;
             letter-spacing: 8px;
             color: var(--accent);
@@ -66,7 +66,7 @@
         }
 
         #status-label {
-            font-size: clamp(2rem, 4vw, 5rem);
+            font-size: clamp(2rem, 4vw, 4rem);
             text-transform: uppercase;
             letter-spacing: 8px;
             color: var(--accent);
@@ -75,7 +75,7 @@
         }
 
         #timer {
-            font-size: clamp(8rem, 15vw, 15rem);
+            font-size: clamp(8rem, 15vw, 14rem);
             font-weight: 900;
             line-height: 1;
             font-variant-numeric: tabular-nums;
@@ -222,14 +222,14 @@
         }
 
         .next-channel-label {
-            font-size: clamp(1rem, 2vw, 1.8rem);
+            font-size: clamp(1rem, 2vw, 1rem);
             color: #666;
             font-weight: bold;
             margin-bottom: 2px;
         }
 
         .next-pilot-name {
-            font-size: clamp(1rem, 2vw, 1.8rem);
+            font-size: clamp(1rem, 2vw, 1.5rem);
             ;
             font-weight: bold;
             color: #888;
@@ -239,22 +239,23 @@
         }
 
         .next-vtx-info {
-            font-size: clamp(0.8rem, 1.8vw, 1.5rem);
+            font-size: clamp(0.8rem, 1.8vw, 1rem);
             color: #888;
             opacity: 0.8;
-
+            visibility: hidden;
+            display: none;
         }
 
         .next-empty-slot {
             color: #333;
             font-style: italic;
-            font-size: 2vw;
+            font-size: 1vw;
         }
 
 
         /* --- FOOTER --- */
         .footer {
-            padding: 15px;
+            padding: 10px;
             display: flex;
             gap: 15px;
             justify-content: center;
@@ -270,7 +271,7 @@
             padding: 12px 35px;
             border: none;
             border-radius: 6px;
-            font-size: clamp(1rem, 2vw, 1.5rem);
+            font-size: clamp(1rem, 2vw, 1.1rem);
             cursor: pointer;
             font-weight: bold;
             text-transform: uppercase;
