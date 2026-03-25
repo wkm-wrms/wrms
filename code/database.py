@@ -71,13 +71,14 @@ class RaceDatabase:
     def _init_tables(self):
         with self._get_conn() as conn:
             # Piloci
-            conn.execute("""CREATE TABLE IF NOT EXISTS pilot (
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS pilot (
                 pilot_id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
                 country TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE(name),
-                check(name != "")
+                check(name != '')
             )""")
             conn.execute(
                 """CREATE index IF NOT EXISTS idx_pilots_name ON pilot(name)""")

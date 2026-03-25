@@ -41,6 +41,8 @@ def process_heat_data(heat: Heat) -> Dict[str, Any]:
 
     return {
         "status": heat.get_status(),
+        "heat_number": heat.heat_number,
+
         "live_seconds_left": seconds_left,
         "channels": heat_data['channels'],
 

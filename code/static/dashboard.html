@@ -8,7 +8,9 @@
     <style>
         :root {
             --bg-dark: #0a0a0a;
-            --card-bg: #161616;
+            --bg-gray: #202020;
+            --card-bg: #505050;
+            --next-card-bg: #161616;
             --text-main: #eeeeee;
             --accent: #00d4ff;
             --warning: #ffcc00;
@@ -18,13 +20,26 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-dark);
+            background-color: var(--bg-gray);
             color: var(--text-main);
             margin: 0;
             display: flex;
             flex-direction: column;
-            height: 100vh;
+            height: 100%;
             overflow: hidden;
+        }
+
+        #logo {
+            height: 50px;
+            width: 200px;
+            margin: 0px;
+            padding: 0px;
+            margin-bottom: -10px;
+            padding: 10px;
+            display: flex;
+            position: absolute;
+            top: 0%;
+            align-items: left;
         }
 
         /* --- TIMER & STATUS --- */
@@ -35,6 +50,21 @@
             justify-content: center;
             align-items: center;
             text-align: center;
+            height: 20%;
+            position: absolute;
+            top: 10%;
+            height: 40%;
+            width: 100%;
+        }
+
+        #flight-number {
+            font-size: 2.5rem;
+            text-transform: uppercase;
+            letter-spacing: 8px;
+            color: var(--accent);
+            margin-bottom: -10px;
+            text-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
+
         }
 
         #status-label {
@@ -53,6 +83,7 @@
             font-variant-numeric: tabular-nums;
             transition: color 0.3s ease;
         }
+
 
         .timer-low {
             color: var(--danger);
@@ -79,6 +110,10 @@
             grid-template-columns: repeat(4, 1fr);
             gap: 15px;
             padding: 0 20px 20px 20px;
+            position: absolute;
+            top: 50%;
+            left: 0%;
+            width: 100%;
         }
 
         .pilot-card {
@@ -128,14 +163,19 @@
             font-size: 1.5rem;
         }
 
-        /* --- NEXT HEAT BAR --- */
-        .next-heat-bar {
-            background: #111;
-            padding: 12px 30px;
+
+        /* --- NEXT PILOTS GRID --- */
+        .next-pilots-container {
             display: flex;
-            align-items: center;
-            border-top: 1px solid #333;
-            min-height: 50px;
+            flex-direction: column;
+
+            font-size: 1.3rem;
+            overflow: hidden;
+            position: absolute;
+            top: 70%;
+            left: 0%;
+            width: 100%;
+            border: #fff;
         }
 
         .next-label {
@@ -143,34 +183,61 @@
             color: var(--warning);
             margin-right: 25px;
             font-size: 1.1rem;
-            white-space: nowrap;
+            width: 100%;
         }
 
-        .next-pilots-container {
+        .next-pilot-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1px;
+            padding: 0;
+            width: 100%;
+            flex-wrap: nowrap;
+        }
+
+        .next-pilot-card {
+            background: var(--next-card-bg);
+            border-radius: 12px;
+            padding: 0px;
+            text-align: center;
+            border: 2px solid #222;
+            transition: all 0.3s ease;
+            min-height: 120px;
             display: flex;
-            gap: 40px;
-            font-size: 1.3rem;
-            overflow: hidden;
+            flex-direction: column;
+            justify-content: center;
         }
 
-        .next-pilot-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .next-ch {
+        .next-channel-label {
+            font-size: 1.2rem;
             color: #666;
-            font-size: 0.8rem;
-            background: #222;
-            padding: 2px 6px;
-            border-radius: 4px;
+            font-weight: bold;
+            margin-bottom: 2px;
         }
 
-        .next-name {
-            font-weight: 500;
-            color: #bbb;
+        .next-pilot-name {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #888;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
+
+        .next-vtx-info {
+            font-size: 0.8rem;
+            color: var(--accent);
+            opacity: 0.8;
+            margin-top: 5px;
+            display: none;
+        }
+
+        .next-empty-slot {
+            color: #333;
+            font-style: italic;
+            font-size: 0.8rem;
+        }
+
 
         /* --- FOOTER --- */
         .footer {
@@ -179,6 +246,11 @@
             gap: 15px;
             justify-content: center;
             background: #000;
+            position: absolute;
+            top: 90%;
+            left: 0%;
+            width: 100%;
+            height: 10%;
         }
 
         .btn {
@@ -207,10 +279,11 @@
             position: fixed;
             z-index: 1000;
             left: 0;
-            top: 0;
+            top: 40%;
             width: 100%;
-            height: 100%;
+            height: 50%;
             background: rgba(0, 0, 0, 0.95);
+            opacity: 95%;
         }
 
         .modal-content {
@@ -236,9 +309,11 @@
 </head>
 
 <body>
-
+    <div id="logo"><img src="/static/logo.png" alt="Logo" /></div>
     <div class="top-section">
+        <div id="flight-number"></div>
         <div id="status-label">ŁADOWANIE...</div>
+
         <div id="timer">00:00</div>
     </div>
 
@@ -261,17 +336,35 @@
         </div>
     </div>
 
-    <div class="next-heat-bar">
-        <div class="next-label">NASTĘPNY BIEG:</div>
-        <div id="next-pilots-list" class="next-pilots-container">
-            <span style="color:#444">Oczekiwanie na dane...</span>
+    <div class="next-pilots-container">
+
+        <div class="next-label">NASTĘPNA GRUPA:</div>
+        <div class="next-pilot-grid">
+
+            <div class="next-pilot-card" id="next-slot-R1">
+                <div class="next-channel-label">R1</div>
+                <div class="next-pilot-content"></div>
+            </div>
+            <div class="next-pilot-card" id="next-slot-R3">
+                <div class="next-channel-label">R3</div>
+                <div class="next-pilot-content"></div>
+            </div>
+            <div class="next-pilot-card" id="next-slot-R6">
+                <div class="next-channel-label">R6</div>
+                <div class="next-pilot-content"></div>
+            </div>
+            <div class="next-pilot-card" id="next-slot-R7">
+                <div class="next-channel-label">R7</div>
+                <div class="next-pilot-content"></div>
+            </div>
         </div>
     </div>
-
     <div class="footer">
         <button class="btn btn-secondary" onclick="openModal('groupsModal')">Lista Grup</button>
-        <button class="btn btn-primary" onclick="openModal('pilotModal')">Panel Pilota</button>
+        <button style="display:none;" class="btn btn-primary" onclick="openModal('pilotModal')">Panel
+            Pilota</button>
     </div>
+
 
     <div id="groupsModal" class="modal">
         <div class="modal-content">
@@ -304,10 +397,43 @@
                 const resCurr = await fetch('/api/heat');
                 const response = await resCurr.json();
                 rendertHeats(response);
+                displayTimer();
 
             } catch (e) {
                 console.error("Dashboard Sync Error:", e);
             }
+        }
+
+        let currenHeatNumber = null;
+        let currentHeatStatus = null;
+        let currentTimerEnds = null
+        let timerRunning = false;
+
+
+        function displayTimer() {
+            if (!timerRunning)
+                return;
+            const timerEl = document.getElementById('timer');
+
+            if (currentTimerEnds) {
+                secs = (currentTimerEnds - Date.now()) / 1000
+                if (secs <= 0) {
+                    updateDashboard();
+                    secs = (currentTimerEnds - Date.now()) / 1000
+                }
+                timerEl.innerText = formatTime(secs);
+                // Alert wizualny poniżej 30s
+                if (secs < 30 && currentHeatStatus === 'FLIGHT') {
+                    timerEl.classList.add('timer-low');
+                } else {
+                    timerEl.classList.remove('timer-low');
+                }
+
+            } else {
+                timerEl.innerText = "READY";
+                timerEl.classList.remove('timer-low');
+            }
+            return;
         }
 
         function rendertHeats(response) {
@@ -318,30 +444,40 @@
                 statusEl.innerText = response.message || "SESJA WSTRZYMANA";
                 timerEl.innerText = "PAUZA";
                 timerEl.classList.remove('timer-low');
+                timerRunning = false;
                 clearCurrentGrid();
+                clearNextGrid();
                 return;
+            }
+            const statusPublic = {
+                "FLIGHT": "W trakcie lotów",
+                "PREP": "Przygotowanie",
+                "PAUSED": "Pauza",
             }
 
             const heat = response.heat;
-            statusEl.innerText = heat.status;
+
+            if (currenHeatNumber !== heat.heat_number) {
+                currenHeatNumber = heat.heat_number;
+                document.getElementById('flight-number').innerText = `Bieg numer: ${heat.heat_number}`;
+            }
+
+            if (currentHeatStatus !== heat.status) {
+                if ((heat.status === 'FLIGHT') || (heat.status === 'PREP')) {
+                    timerRunning = true;
+                } else if (heat.status === 'PAUSED') {
+                    timerRunning = false;
+                }
+                currentHeatStatus = heat.status;
+                document.getElementById('status-label').innerText = statusPublic[heat.status];
+            }
 
             // Timer Logic
             if (heat.live_seconds_left !== null) {
                 const secs = heat.live_seconds_left;
-                timerEl.innerText = formatTime(secs);
-
-                // Alert wizualny poniżej 30s
-                if (secs < 30 && heat.status === 'FLIGHT') {
-                    timerEl.classList.add('timer-low');
-                } else {
-                    timerEl.classList.remove('timer-low');
-                }
-            } else {
-                timerEl.innerText = "READY";
-                timerEl.classList.remove('timer-low');
+                currentTimerEnds = Date.now() + secs * 1000;
             }
-
-            // Current ilots Grid Logic
+            // Current pilots Grid Logic
             CHANNELS.forEach(ch => {
                 const slot = document.getElementById(`slot-${ch}`);
                 const pilot = heat.channels[ch];
@@ -362,23 +498,27 @@
             const container = document.getElementById('next-pilots-list');
 
             if (!next_heat || !next_heat.channels) {
-                container.innerHTML = '<span style="color:#444">Brak zaplanowanych kolejnych biegów</span>';
+                clearNextGrid();
                 return;
             }
 
-            const pilots = next_heat.channels;
-            const html = CHANNELS.map(ch => {
-                const p = pilots[ch];
-                if (!p) return '';
-                return `
-                <div class="next-pilot-item">
-                    <span class="next-ch">${ch}</span>
-                    <span class="next-name">${p.pilot.name}</span>
-                </div>
-            `;
-            }).join('');
 
-            container.innerHTML = html || '<span style="color:#444">Brak pilotów w następnej grupie</span>';
+            // Current pilots Grid Logic
+            CHANNELS.forEach(ch => {
+                const slot = document.getElementById(`next-slot-${ch}`);
+                const pilot = next_heat.channels[ch];
+                const content = slot.querySelector('.next-pilot-content');
+                if (pilot) {
+                    content.innerHTML = `
+                    <div class="next-pilot-name">${pilot.pilot.name}</div>
+                    <div class="next-vtx-info">${pilot.vtx}</div>
+                `;
+                } else {
+                    slot.classList.remove('active');
+                    content.innerHTML = `<div class="empty-slot">---</div>`;
+                }
+            });
+            return;
         }
 
         function clearCurrentGrid() {
@@ -388,13 +528,19 @@
                 slot.querySelector('.pilot-content').innerHTML = `<div class="empty-slot">---</div>`;
             });
         }
+        function clearNextGrid() {
+            CHANNELS.forEach(ch => {
+                const slot = document.getElementById(`next-slot-${ch}`);
+                slot.querySelector('.next-pilot-content').innerHTML = `<div class="next-empty-slot">---</div>`;
+            });
+        }
 
         function formatTime(seconds) {
             if (seconds <= 0) {
                 return "00:00";
             }
             const m = Math.floor(seconds / 60);
-            const s = Math.floor(seconds % 60);
+            const s = Math.floor(seconds % 60)
             return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
         }
         let modalTimer = null; // Zmienna do przechowywania referencji licznika
@@ -469,8 +615,10 @@
         }
 
         // Polling co 1 sekundę
-        setInterval(updateDashboard, 1000);
+        setInterval(updateDashboard, 5000);
+        setInterval(displayTimer, 100);
         updateDashboard(); // Pierwsze wywołanie
+        displayTimer();
     </script>
 </body>
 
