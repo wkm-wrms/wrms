@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from typing import Optional
 
 from session import get_session
 from database import RaceDatabase, get_db
@@ -50,28 +51,19 @@ async def get_rebalance_groups():
 
 class PilotMove(BaseModel):
     pilot_id: int
-    from_channel: str
-    from_group: int
-    to_channel: str
-    to_group: int
+    from_channel: Optional[str]
+    from_group: Optional[int]
+    to_channel: Optional[str]
+    to_group: Optional[int]
 
 
 @router.post("/move_pilot")
 async def post_move_pilot(move: PilotMove):
-    if move.pilot_id is None or move.from_channel is None or move.from_group is None:
-        raise HTTPException(status_code=404, detail="Nieokreślony pilot")
+    print(f"API: move_pilot: {move}")
     session = get_session()
     # Poszukajmy czy pilot jest
-    groups = session.groups
-
-    for group in groups:
-        print(
-            f"group: {str(type(group))} {group}, groups: {str(type(session.groups))}")
-#        for pilot in group.pilots:
-#            if pilot.id == move.pilot_id:
-#                group_from = group
-#    if group_from is None:
-#        raise HTTPException(
-#            status_code=404, detail="Pilot nie jest w zadnej grupie")
+    res = session.move_pilot(move.pilot_id, move.from_channel, move.from_group,
+                             move.to_channel, move.to_group)
     db.update_groups(session)
-    return {"status": "ok", "groups": session.groups}
+    db.save_session_data(session)
+    return res

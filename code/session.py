@@ -292,6 +292,50 @@ class Session(BaseModel):
         """ Sets the phase that was active before the session was paused and triggers auto-saving if enabled.        """
         self.phase_before_pause = phase
 
+    def move_pilot(self, pilot_id: int, from_channel: str, from_group: int, to_channel: str, to_group: int):
+
+        # Sepcyficzna obsluga paddocka
+        if from_group is not None and from_group < 0:
+            from_group = None
+        if from_group is not None and to_group < 0:
+            to_group = None
+
+        # javascript uzywa group_sequence. Zmniejszmy o 1
+        if from_group is not None:
+            from_group -= 1
+        if to_group is not None:
+            to_group -= 1
+
+        if pilot_id not in self.active_pilots:
+            return {"status": "error", "message": "Pilot nie jest aktywny"}
+
+        if to_channel is not None and to_channel not in ALLOWED_CHANNELS:
+            return {"status": "error", "message": "Niepoprawny kanał"}
+        if from_channel is not None and from_channel not in ALLOWED_CHANNELS:
+            return {"status": "error", "message": "Niepoprawny kanał"}
+
+        if from_group is not None and from_group >= len(self.groups):
+            return {"status": "error", "message": "Niepoprawna grupa"}
+        if to_group is not None and to_group >= len(self.groups):
+            return {"status": "error", "message": "Niepoprawna grupa"}
+
+        if from_channel is not None and from_group is not None:
+            # Sprawdzamy czy na tej pozycji znajduje sie ten pilot
+            group = self.groups[from_group]
+            if from_channel not in group.channels.keys():
+                return {"status": "error", "message": "Pilot nie jest w grupie"}
+            if group.channels[from_channel].pilot_id != pilot_id:
+                return {"status": "error", "message": "Pilot nie jest w tej pozycji"}
+        pilot: ActivePilot = self.active_pilots[pilot_id]
+        print(
+            f"przenosze z {from_group}/{from_channel} do {to_group}/{to_channel} pilota {pilot}")
+        if from_group is not None:
+            del self.groups[from_group].channels[from_channel]
+        if to_group is not None:
+            self.groups[to_group].channels[to_channel] = pilot
+
+        return {"status": "ok", "groups": self.groups}
+
     def rebalance_groups(self):
         total_pilots = len(self.active_pilots)
         if total_pilots == 0:

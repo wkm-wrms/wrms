@@ -361,6 +361,9 @@
             font-style: italic;
         }
 
+
+
+
         .paddock-area {
             display: flex;
             flex-wrap: wrap;
@@ -541,29 +544,35 @@
                 <button class="btn btn-success" onclick="startSession()">START WYŚCIGÓW</button>
                 <button class="btn btn-danger" onclick="terminateSession()">ZAKOŃCZ SESJĘ</button>
             </div>
-            <section class="card" style="margin-top: 20px; overflow-x: auto;">
-                <h3>Harmonogram Grup i Kanałów</h3>
-                <table id="groupsTable" class="race-table">
-                    <thead>
-                        <tr>
-                            <th>Grupa</th>
-                            <th class="ch-head">R1 (5658)</th>
-                            <th class="ch-head">R3 (5732)</th>
-                            <th class="ch-head">R6 (5843)</th>
-                            <th class="ch-head">R7 (5880)</th>
-                        </tr>
-                    </thead>
-                    <tbody id="groupsTableBody">
-                    </tbody>
-                </table>
-            </section>
-            <section class="card" style="margin-bottom: 20px; border: 2px dashed #ccc; background: #fafafa;">
-                <h3 style="margin-top: 0; color: #666;">Poczekalnia (Paddock)</h3>
-                <div id="paddock" class="pilot-slot paddock-area" ondragover="event.preventDefault()"
-                    ondrop="handleDropToPaddock(event)">
-                    <span class="empty-slot">Przeciągnij tutaj pilota, aby go odpiąć od grupy</span>
-                </div>
-            </section>
+
+
+
+
+            <section class="card paddock-section">
+                <section class="card">
+                    <h3>Harmonogram Grup</h3>
+                    <table class="race-table">
+                        <thead>
+                            <tr>
+                                <th>Grupa</th>
+                                <th>R1 (5658)</th>
+                                <th>R3 (5732)</th>
+                                <th>R6 (5843)</th>
+                                <th>R7 (5880)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="groupsTableBody">
+                        </tbody>
+                    </table>
+                </section>
+                <section class="card paddock-section">
+                    <h3>Poczekalnia (Paddock)</h3>
+                    <div id="paddock" class="paddock-area pilot-slot" data-group-seq="-1"
+                        ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)"
+                        ondrop="handleDrop(event)">
+                    </div>
+                </section>
+
         </div>
 
     </div>
@@ -634,7 +643,6 @@
             } else {
                 document.getElementById('view-none').classList.add('active');
             }
-            loadGroupsPreview();
         }
 
         // --- Akcje API ---
@@ -743,7 +751,7 @@
                 return null;
             }
             loadSessionData();
-            loadGroupsPreview();
+
         }
 
         async function removePilot(id) {
@@ -755,7 +763,7 @@
                 console.error(err);
                 return null;
             }
-            loadGroupsPreview();
+            loadSessionData();
         }
 
         async function loadSessionData() {
@@ -773,6 +781,10 @@
                         ${p.pilot.name} (${p.vtx}) <button class="btn btn-danger btn-sm" onclick="removePilot(${p.pilot_id})">×</button>
                     </div>`;
                 }
+
+                unassigned_pilots = dataP.session.active_pilots;
+                renderGroups(dataP.session.groups);
+                renderPaddock(unassigned_pilots);
 
                 document.getElementById('activePilotsList').innerHTML = html;
 
@@ -812,134 +824,136 @@
             document.getElementById('timerDisplay').innerText = `${m}:${s}`;
         }
 
-        // Dane pomocnicze do śledzenia co przeciągamy
+        // Dane globalne dla Drag & Drop
         let draggedPilotId = null;
-        let sourceGroupSeq = null;
+        let sourceGroup = null;
         let sourceChannel = null;
 
-        async function loadGroupsPreview() {
-            const res = await fetch('/api/groups'); // Zakładam taki endpoint
-            const data = await res.json();
-            groups = data.groups;
-            renderGroupsTable(groups)
+        // --- FUNKCJE OBSŁUGI DRAG & DROP ---
+
+        function handleDragStart(e, pilotId, groupSeq, channel) {
+            draggedPilotId = pilotId;
+            sourceGroup = groupSeq;
+            sourceChannel = channel;
+            e.dataTransfer.setData("text/plain", pilotId);
+            e.target.style.opacity = "0.4";
         }
 
-        async function renderGroupsTable(groups) {
-            const tbody = document.getElementById('groupsTableBody');
-            tbody.innerHTML = '';
-            const allowedChannels = ["R1", "R3", "R6", "R7"];
-            if (!groups) return;
-            groups.forEach(group => {
-                const row = document.createElement('tr');
-                row.innerHTML = `<td class="group-number-cell">Grupa ${group.group_sequence}</td>`;
-                console.log("loop", group);
-                allowedChannels.forEach(ch => {
-                    const pilot = group.channels[ch];
-                    const td = document.createElement('td');
-                    td.className = 'pilot-slot';
-                    // Dane identyfikacyjne dla miejsca upuszczenia
-                    td.dataset.groupSeq = group.group_sequence;
-                    td.dataset.channel = ch;
+        function handleDragEnd(e) {
+            e.target.style.opacity = "1";
+            // Czyścimy podświetlenia po zakończeniu
+            document.querySelectorAll('.pilot-slot').forEach(s => s.classList.remove('drag-over'));
+        }
 
-                    // Obsługa upuszczania na komórkę
-                    td.ondragover = (e) => e.preventDefault();
-                    td.ondrop = (e) => handleDrop(e);
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('drag-over');
+        }
 
-                    if (pilot) {
-                        const pilotDiv = document.createElement('div');
-                        pilotDiv.draggable = true;
-                        pilotDiv.innerHTML = `<strong>${pilot.pilot.name}</strong><br><small>${pilot.vtx}</small>`;
-
-                        // Dane identyfikacyjne dla przeciąganego elementu
-                        pilotDiv.ondragstart = (e) => {
-                            draggedPilotId = pilot.id;
-                            sourceGroupSeq = group.group_sequence;
-                            sourceChannel = ch;
-                            e.dataTransfer.setData("text/plain", pilot.id);
-                            pilotDiv.style.opacity = "0.4";
-                        };
-
-                        pilotDiv.ondragend = () => pilotDiv.style.opacity = "1";
-
-                        td.appendChild(pilotDiv);
-                    } else {
-                        td.innerHTML = '<span class="empty-slot">wolny</span>';
-                    }
-                    row.appendChild(td);
-                });
-                tbody.innerHTML += row.outerHTML;
-            });
+        function handleDragLeave(e) {
+            e.currentTarget.classList.remove('drag-over');
         }
 
         async function handleDrop(e) {
-            console.log("handle drop: " + e)
             e.preventDefault();
-            const targetCell = e.target.closest('.pilot-slot');
-            if (!targetCell) return;
+            const targetSlot = e.currentTarget;
+            targetSlot.classList.remove('drag-over');
 
-            const targetGroupSeq = targetCell.dataset.groupSeq;
-            const targetChannel = targetCell.dataset.channel;
+            const targetGroup = targetSlot.dataset.groupSeq;
+            const targetChannel = targetSlot.dataset.channel || null;
 
-            // Wysyłamy informację o zmianie do backendu
-            const res = await fetch('/api/session/move_pilot', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    pilot_id: draggedPilotId,
-                    from_group: sourceGroupSeq,
-                    from_channel: sourceChannel,
-                    to_group: targetGroupSeq,
-                    to_channel: targetChannel
-                })
+            // Jeśli upuszczono w to samo miejsce - ignoruj
+            if (sourceGroup === targetGroup && sourceChannel === targetChannel) return;
+            // Wywołanie API
+            try {
+                const res = await fetch('/api/groups/move_pilot', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        pilot_id: draggedPilotId,
+                        from_group: sourceGroup,
+                        from_channel: sourceChannel,
+                        to_group: targetGroup,
+                        to_channel: targetChannel
+                    })
+                });
+
+                const data = await res.json();
+                if (data.status === "ok") {
+                    loadSessionData(); // Odśwież widok
+                } else {
+                    alert(data.message || "Błąd przenoszenia");
+                }
+            } catch (err) {
+                console.error("Błąd sieci:", err);
+            }
+        }
+
+
+
+        function renderPaddock(pilots) {
+            // Unasigned pilot bedzie slownikiem pilot_id -> ActivePilot
+            if (pilots) {
+                const container = document.getElementById('paddock');
+                container.innerHTML = pilots.length ? '' : '<span class="empty-slot">Przeciągnij tutaj pilota, aby go odpiąć</span>';
+
+                for (const pilot_id in pilots) {
+                    pilot = pilots[pilot_id];
+                    container.appendChild(createPilotCard(pilot, null, null));
+                }
+            }
+        }
+
+        function renderGroups(groups) {
+            const tbody = document.getElementById('groupsTableBody');
+            tbody.innerHTML = '';
+            const channels = ["R1", "R3", "R6", "R7"];
+
+            groups.forEach(g => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td class="group-number-cell">G${g.group_sequence}</td>`;
+
+                channels.forEach(ch => {
+                    const td = document.createElement('td');
+                    td.className = 'pilot-slot';
+                    td.dataset.groupSeq = g.group_sequence;
+                    td.dataset.channel = ch;
+
+                    // Eventy dla slotu
+                    td.ondragover = handleDragOver;
+                    td.ondragleave = handleDragLeave;
+                    td.ondrop = handleDrop;
+
+                    const pilot = g.channels[ch];
+
+                    if (pilot) {
+                        td.appendChild(createPilotCard(pilot, g.group_sequence, ch));
+                        delete unassigned_pilots[pilot.pilot_id];
+                    } else {
+                        td.innerHTML = '<span class="empty-slot">wolny</span>';
+                    }
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
             });
-
-            const data = await res.json();
-            if (data.status === "ok") {
-                loadGroupsPreview(); // Odświeżamy tabelę po sukcesie
-            } else {
-                alert(data.message || "Nie można przenieść pilota na zajęte miejsce");
-            }
-        }
-        async function handleDropToPaddock(e) {
-            e.preventDefault();
-
-            // Jeśli pilot już był w poczekalni, nic nie rób
-            if (!sourceGroupSeq || sourceGroupSeq === 'paddock') return;
-
-            const res = await fetch('/api/session/unassign_pilot', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    pilot_id: draggedPilotId,
-                    from_group: sourceGroupSeq,
-                    from_channel: sourceChannel
-                })
-            });
-
-            if ((await res.json()).status === "ok") {
-                loadGroupsPreview();
-            }
         }
 
-        // Zaktualizuj też funkcję renderującą, aby wypełniała Paddock
-        async function renderPaddock(unassignedPilots) {
-            const container = document.getElementById('paddock');
-            if (unassignedPilots.length === 0) {
-                container.innerHTML = '<span class="empty-slot">Wszyscy piloci są przypisani do grup</span>';
-                return;
-            }
+        function createPilotCard(pilot, groupSeq, channel) {
+            const div = document.createElement('div');
+            div.className = `pilot-card`;
+            div.draggable = true;
+            div.innerHTML = `<strong>${pilot.pilot.name}</strong><br><small>${pilot.vtx}</small>`;
 
-            container.innerHTML = unassignedPilots.map(pilot => {
-                const vtxClass = `vtx-${pilot.vtx_type.toLowerCase()}`;
-                return `
-            <div class="pilot-card ${vtxClass}" draggable="true" 
-                 ondragstart="draggedPilotId=${pilot.id}; sourceGroupSeq='paddock'; sourceChannel=null;">
-                <strong>${pilot.name}</strong><br>
-                <small>${pilot.vtx_type}</small>
-            </div>
-        `;
-            }).join('');
+            div.ondragstart = (e) => handleDragStart(e, pilot.pilot_id, groupSeq, channel);
+            div.ondragend = handleDragEnd;
+
+            return div;
         }
+
+
+
+
+
 
         function openGroupModal() {
             const modal = document.getElementById('groupModal');

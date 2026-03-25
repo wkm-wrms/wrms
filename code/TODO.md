@@ -1,8 +1,8 @@
 # Rzeczy, ktory brakue aktualnie w module zarzadzania sesjami treningowymi, wishlisty itp 
 
+* dodawania i usuwanie grup
 
-* Do zrobienia zarzadzanie grupami - mozliwosc przenoszenia pilotow miedzy grupami, dodawania i usuwanie grup
-* dodac wyswietlanie paddocku - pilotow bez grupy 
+
 * na ekranie administracyjnym zawsze wyswietlac wszystkich pilotow, nie po 2 literach 
 * W trakcie treningu pokazywac administratorowi czas, aktualny i następny  heat
 * Dodać możliwość zmiany parametrów sesji - czas lotu i przygotowania 

@@ -31,6 +31,8 @@
         .paddock-section {
             border: 2px dashed #bbb;
             background: #fdfdfd;
+            width: 100%;
+            align-items: center;
         }
 
         .paddock-area {
@@ -42,6 +44,8 @@
             border-radius: 8px;
             background: white;
             border: 1px inset #eee;
+            width: 90%;
+
         }
 
         /* TABELA GRUP */
@@ -65,8 +69,6 @@
 
         /* SLOTY I KARTY PILOTÓW */
         .pilot-slot {
-            width: 180px;
-            height: 70px;
             transition: background 0.2s;
             position: relative;
         }
@@ -120,29 +122,31 @@
 
     <div class="container">
         <section class="card paddock-section">
-            <h3>Poczekalnia (Paddock)</h3>
-            <div id="paddock" class="paddock-area pilot-slot" data-group-seq="paddock"
-                ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
-            </div>
-        </section>
+            <section class="card">
+                <h3>Harmonogram Grup</h3>
+                <table class="race-table">
+                    <thead>
+                        <tr>
+                            <th>Grupa</th>
+                            <th>R1 (5658)</th>
+                            <th>R3 (5732)</th>
+                            <th>R6 (5843)</th>
+                            <th>R7 (5880)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="groupsTableBody">
+                    </tbody>
+                </table>
+            </section>
+            <section class="card paddock-section">
+                <h3>Poczekalnia (Paddock)</h3>
+                <div id="paddock" class="paddock-area pilot-slot" data-group-seq="-1" ondragover="handleDragOver(event)"
+                    ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+                </div>
+            </section>
 
-        <section class="card">
-            <h3>Harmonogram Grup</h3>
-            <table class="race-table">
-                <thead>
-                    <tr>
-                        <th>Grupa</th>
-                        <th>R1 (5658)</th>
-                        <th>R3 (5732)</th>
-                        <th>R6 (5843)</th>
-                        <th>R7 (5880)</th>
-                    </tr>
-                </thead>
-                <tbody id="groupsTableBody">
-                </tbody>
-            </table>
-        </section>
     </div>
+
 
     <script>
         // Dane globalne dla Drag & Drop
@@ -186,8 +190,6 @@
             // Jeśli upuszczono w to samo miejsce - ignoruj
             if (sourceGroup === targetGroup && sourceChannel === targetChannel) return;
 
-            console.log(`Przenoszenie pilota ${draggedPilotId} z ${sourceGroup}:${sourceChannel} do ${targetGroup}:${targetChannel}`);
-
             // Wywołanie API
             try {
                 const res = await fetch('/api/groups/move_pilot', {
@@ -204,6 +206,7 @@
 
                 const data = await res.json();
                 if (data.status === "ok") {
+
                     loadSessionData(); // Odśwież widok
                 } else {
                     alert(data.message || "Błąd przenoszenia");
@@ -215,23 +218,28 @@
 
         // --- RENDEROWANIE INTERFEJSU ---
 
+        let unassigned_pilots = null;
+
         async function loadSessionData() {
             // Symulacja pobrania danych (zastąp fetchem do Twojego API)
             const res = await fetch('/api/session');
             const data = await res.json();
 
-            renderPaddock(data.unassigned_pilots);
+            unassigned_pilots = data.session.active_pilots;
             renderGroups(data.session.groups);
+            renderPaddock(unassigned_pilots);
         }
 
         function renderPaddock(pilots) {
+            // Unasigned pilot bedzie slownikiem pilot_id -> ActivePilot
             if (pilots) {
                 const container = document.getElementById('paddock');
                 container.innerHTML = pilots.length ? '' : '<span class="empty-slot">Przeciągnij tutaj pilota, aby go odpiąć</span>';
 
-                pilots.forEach(p => {
-                    container.appendChild(createPilotCard(p, 'paddock', null));
-                });
+                for (const pilot_id in pilots) {
+                    pilot = pilots[pilot_id];
+                    container.appendChild(createPilotCard(pilot, null, null));
+                }
             }
         }
 
@@ -256,8 +264,10 @@
                     td.ondrop = handleDrop;
 
                     const pilot = g.channels[ch];
+
                     if (pilot) {
                         td.appendChild(createPilotCard(pilot, g.group_sequence, ch));
+                        delete unassigned_pilots[pilot.pilot_id];
                     } else {
                         td.innerHTML = '<span class="empty-slot">wolny</span>';
                     }
@@ -271,9 +281,9 @@
             const div = document.createElement('div');
             div.className = `pilot-card`;
             div.draggable = true;
-            div.innerHTML = `<strong>${pilot.name}</strong><br><small>${pilot.vtx_type}</small>`;
+            div.innerHTML = `<strong>${pilot.pilot.name}</strong><br><small>${pilot.vtx}</small>`;
 
-            div.ondragstart = (e) => handleDragStart(e, pilot.id, groupSeq, channel);
+            div.ondragstart = (e) => handleDragStart(e, pilot.pilot_id, groupSeq, channel);
             div.ondragend = handleDragEnd;
 
             return div;
