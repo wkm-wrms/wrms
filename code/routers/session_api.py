@@ -209,5 +209,6 @@ async def session_remove_pilot(pilot_remove: PilotRemove):
     session = get_session()
     session.remove_pilot(pilot_remove.pilot_id)
     db.session_remove_pilot(session.session_id, pilot_remove.pilot_id)
+    db.save_session_data(session)
     db.update_groups(session)
     return {"status": "ok"}

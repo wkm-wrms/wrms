@@ -162,6 +162,10 @@ class Session(BaseModel):
         """
         if pilot_id in self.active_pilots:
             self.active_pilots.pop(pilot_id)
+        for group in self.groups:
+            for ch in group.channels.keys():
+                if group.channels[ch].pilot_id == pilot_id:
+                    group.channels.pop(ch)
 #
 #
 # Heats Management
