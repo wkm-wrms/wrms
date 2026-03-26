@@ -638,7 +638,8 @@
                 if (s.current_phase === 'FLIGHT') {
                     document.getElementById('view-started').classList.add('active');
                     isPaused = s.is_paused;
-                    syncTimer(s.live_remaining_seconds, s.is_paused);
+                    updateHeats();
+
                 }
             } else {
                 document.getElementById('view-none').classList.add('active');
@@ -677,6 +678,7 @@
                 return null;
             }
             updateUI();
+            startTimer();
         }
 
         async function terminateSession() {
@@ -688,7 +690,8 @@
                     console.error(err);
                     return null;
                 }
-                clearInterval(timerInt);
+
+                stopTimer();
                 updateUI();
             }
         }
@@ -696,13 +699,14 @@
         async function pauseSession() {
             const res = await fetch('/api/session/pause', { method: 'POST' });
             const data = await res.json();
-            syncTimer(data.remaining_seconds, true);
+            stopTimer();
         }
 
         async function resumeSession() {
             const res = await fetch('/api/session/resume', { method: 'POST' });
             const data = await res.json();
-            syncTimer(data.remaining_seconds, false);
+            startTimer();
+
         }
 
         // --- Zarządzanie Pilotami ---
@@ -796,33 +800,128 @@
         }
 
         // --- Timer ---
-        function syncTimer(seconds, paused) {
-            clearInterval(timerInt);
-            timeRemaining = Math.floor(seconds);
-            isPaused = paused;
 
-            updateTimerDisplay();
+        let currenHeatNumber = null;
+        let currentHeatStatus = null;
+        let currentTimerEnds = null
+        let timerRunning = false;
 
-            document.getElementById('btnPause').style.display = isPaused ? 'none' : 'block';
-            document.getElementById('btnResume').style.display = isPaused ? 'block' : 'none';
 
-            if (!isPaused && timeRemaining > 0) {
-                timerInt = setInterval(() => {
-                    timeRemaining--;
-                    if (timeRemaining <= 0) {
-                        clearInterval(timerInt);
-                        timeRemaining = 0;
-                    }
-                    updateTimerDisplay();
-                }, 1000);
+        function displayTimer() {
+            if (!timerRunning)
+                return;
+            const timerEl = document.getElementById('timerDisplay');
+
+            if (currentTimerEnds) {
+                secs = (currentTimerEnds - Date.now()) / 1000
+                if (secs <= 0) {
+                    updateHeats();
+                    secs = (currentTimerEnds - Date.now()) / 1000
+                }
+                timerEl.innerText = formatTime(secs);
+            } else {
+                timerEl.innerText = "READY";
+                timerEl.classList.remove('timer-low');
+            }
+            return;
+        }
+
+        async function startTimer() {
+            setInterval = setInterval(displayTimer, 100);
+            timerRunning = true;
+        }
+
+        function stopTimer() {
+            if (timerInt)
+                clearInterval(timerInt);
+
+            timerInt = null;
+            timerRunning = false;
+        }
+        function formatTime(seconds) {
+            if (seconds <= 0) {
+                return "00:00";
+            }
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60)
+            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+
+
+        async function updateHeats() {
+            try {
+                // 1. Pobierz Aktualny Heat
+                const resCurr = await fetch('/api/heat');
+                const response = await resCurr.json();
+                rendertHeats(response);
+                displayTimer();
+
+            } catch (e) {
+                console.error("Dashboard Sync Error:", e);
             }
         }
 
-        function updateTimerDisplay() {
-            const m = Math.floor(timeRemaining / 60).toString().padStart(2, '0');
-            const s = (timeRemaining % 60).toString().padStart(2, '0');
-            document.getElementById('timerDisplay').innerText = `${m}:${s}`;
+
+        function rendertHeats(response) {
+            const timerEl = document.getElementById('timerDisplay');
+            const statusEl = document.getElementById('currentHeatDisplay');
+
+            if (response.status !== "ok" || !response.heat) {
+                statusEl.innerText = response.message || "SESJA WSTRZYMANA";
+                timerEl.innerText = "PAUZA";
+                timerEl.classList.remove('timer-low');
+                timerRunning = false;
+                clearCurrentGrid();
+                clearNextGrid();
+                return;
+            }
+            const statusPublic = {
+                "FLIGHT": "W trakcie lotów",
+                "PREP": "Przygotowanie",
+                "PAUSED": "Pauza",
+            }
+
+            const heat = response.heat;
+            statusEl.innerText = "";
+
+            if (currenHeatNumber !== heat.heat_number) {
+                currenHeatNumber = heat.heat_number;
+            }
+
+            if (currentHeatStatus !== heat.status) {
+                if ((heat.status === 'FLIGHT') || (heat.status === 'PREP')) {
+                    if (!timerRunning) {
+                        startTimer();
+                    }
+                    timerRunning = true;
+                } else if (heat.status === 'PAUSED') {
+                    timerRunning = false;
+                }
+
+            }
+            const CHANNELS = ["R1", "R3", "R6", "R7"];
+            // Timer Logic
+            if (heat.live_seconds_left !== null) {
+                const secs = heat.live_seconds_left;
+                currentTimerEnds = Date.now() + secs * 1000;
+            }
+            // Current pilots Grid Logic
+            CHANNELS.forEach(ch => {
+                const pilot = heat.channels[ch];
+                if (pilot) {
+                    statusEl.innerText += pilot.pilot.name + " (" + ch + ") | ";
+                } else {
+                    statusEl.innerText += " ---- (" + ch + ") | ";
+                }
+            });
+
+            const next_heat = response.next_heat;
+            const container = document.getElementById('next-pilots-list');
+
+            return;
         }
+
+
 
         // Dane globalne dla Drag & Drop
         let draggedPilotId = null;
