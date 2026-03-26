@@ -323,6 +323,14 @@
 </head>
 
 <body>
+    <!-- Audio elements dla dźwięków -->
+    <audio id="startSound" preload="auto">
+        <source src="/static/sounds/start.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="endSound" preload="auto">
+        <source src="/static/sounds/end.mp3" type="audio/mpeg">
+    </audio>
+
     <div id="logo"><img src="/static/logo.png" alt="Logo" /></div>
     <div class="top-section">
         <div id="flight-number"></div>
@@ -480,6 +488,11 @@
                 } else if (heat.status === 'PAUSED') {
                     timerRunning = false;
                 }
+                if (heat.status === 'FLIGHT') {
+                    playStartSound();
+                } else if (heat.status === 'PREP') {
+                    playEndSound();
+                }
                 currentHeatStatus = heat.status;
                 document.getElementById('status-label').innerText = statusPublic[heat.status];
             }
@@ -625,6 +638,25 @@
             alert("Zgłoszono: " + action);
             closeModal('pilotModal');
         }
+
+        // Odtwarzanie dźwięków
+        function playStartSound() {
+            const audio = document.getElementById('startSound');
+            if (audio) {
+                audio.currentTime = 0;
+                audio.play().catch(err => console.log('Nie można odtworzyć dźwięku startu:', err));
+            }
+        }
+
+        function playEndSound() {
+            const audio = document.getElementById('endSound');
+            if (audio) {
+                audio.currentTime = 0;
+                audio.play().catch(err => console.log('Nie można odtworzyć dźwięku końca:', err));
+            }
+        }
+
+
 
         // Polling co 1 sekundę
         setInterval(updateDashboard, 5000);
