@@ -9,6 +9,6 @@ class Group(BaseModel):
     channels: dict[str, ActivePilot] = {}  # mapa kanał -> Pilot
     group_sequence: int
 
-    def __init__(self, group_id: int,  channels: dict[str, Pilot], group_sequence: int):
+    def __init__(self, group_id: int,  channels: dict[str, ActivePilot], group_sequence: int):
         super().__init__(group_id=group_id,
                          channels=channels, group_sequence=group_sequence)
