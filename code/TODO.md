@@ -3,7 +3,6 @@
 * przy tworzeniu heatow, pomijamy puste grupy 
 
 
-* na ekranie administracyjnym zawsze wyswietlac wszystkich pilotow, nie po 2 literach 
 
 * Dodać możliwość zmiany parametrów sesji - czas lotu i przygotowania 
 

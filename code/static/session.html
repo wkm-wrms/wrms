@@ -514,7 +514,7 @@
             <div id="view-prep" class="view">
                 <div style="display: flex; justify-content: space-between;">
                     <h2 id="prepTitle">Ładowanie sesji...</h2>
-                    <span class="status-badge badge-prep">Przygotowania</span>
+                    <span class="status-badge badge-prep" id="session-status">Przygotowania</span>
                 </div>
 
                 <div class="grid">
@@ -617,6 +617,11 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name: nameInput.value })
             });
+            if (res) {
+                nameInput.value = '';
+                searchPilots();
+            }
+
             updateUI;
 
 
@@ -639,8 +644,8 @@
                     document.getElementById('view-started').classList.add('active');
                     isPaused = s.is_paused;
                     updateHeats();
-
                 }
+                searchPilots();
             } else {
                 document.getElementById('view-none').classList.add('active');
             }
@@ -712,24 +717,36 @@
         // --- Zarządzanie Pilotami ---
         async function searchPilots() {
             const q = document.getElementById('pilotSearch').value;
-            if (q.length < 2) return;
             try {
-                const res = await fetch(`/api/pilot/search/${q}`);
+                let res = null;
+                if (q.length < 1) {
+                    res = await fetch('/api/pilot');
+                } else {
+                    res = await fetch(`/api/pilot/search/${q}`);
+                }
                 const data = await res.json();
                 const list = document.getElementById('searchResultList');
-                list.innerHTML = data.pilots.map(p => `
-                <div class="item">
-                    ${p.name} 
-                    <select id="VTX_${p.pilot_id}">
-                        <option value="">--- Wybierz VTX ---</option>
-                        <option value="Analog">Analog</option>
-                        <option value="HD0">HD0</option>
-                        <option value="DJI">DJI</option>
-                    </select>
-                    <button class="btn btn-primary btn-sm" onclick="addPilot(${p.pilot_id})">+</button>
-                </div>
-                `).join('');
+                list.innerHTML = '';
+                const activePilotIds = Object.keys(activePilots).map(Number);
 
+                data.pilots.forEach(pilot => {
+
+                    if (!(pilot.pilot_id in activePilots)) {
+                        list.innerHTML += `
+                            <div class="item">
+                                ${pilot.name} 
+                                <select id="VTX_${pilot.pilot_id}">
+                                    <option value="">--- Wybierz VTX ---</option>
+                                    <option value="Analog">Analog</option>
+                                    <option value="HD0">HD0</option>
+                                    <option value="DJI">DJI</option>
+                                </select>
+                                <button class="btn btn-primary btn-sm" onclick="addPilot(${pilot.pilot_id})">+</button>
+                            </div>
+                            `
+                    }
+
+                });
             } catch (err) {
                 alert("Błąd: " + err.message);
                 console.error(err);
@@ -755,6 +772,7 @@
                 return null;
             }
             loadSessionData();
+            searchPilots();
 
         }
 
@@ -768,7 +786,10 @@
                 return null;
             }
             loadSessionData();
+            searchPilots();
         }
+
+        let activePilots = null;
 
         async function loadSessionData() {
             // Tu wywołaj endpointy do pobierania listy pilotów w sesji i grup
@@ -778,13 +799,17 @@
                 const dataP = await resP.json();
                 html = '';
 
+                activePilots = {};
                 for (let pilotId in dataP.session.active_pilots) {
                     const p = dataP.session.active_pilots[pilotId];
                     html += `
                     <div class="item">
                         ${p.pilot.name} (${p.vtx}) <button class="btn btn-sm btn-danger btn-sm" onclick="removePilot(${p.pilot_id})">×</button>
                     </div>`;
+                    activePilots[p.pilot_id] = p;
                 }
+                statusEl = document.getElementById('session-status');
+                statusEl.innerText = dataP.session.current_phase;
 
                 unassigned_pilots = dataP.session.active_pilots;
                 renderGroups(dataP.session.groups);
@@ -1150,7 +1175,6 @@
                 console.error("Błąd sieci:", err);
             }
         }
-
 
         window.onload = updateUI;
     </script>
