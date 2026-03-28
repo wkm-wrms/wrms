@@ -21,6 +21,7 @@ Na podstawie analizy plików `requirements.md` oraz `use cases.md` względem akt
 - [ ] Implementacja grupowania systemów cyfrowych w pierwszej kolejności.
 - [ ] Logika "5. zawodnika" dla osób z flagą `low_band`.
 - [ ] Automatyczny rebalancing po usunięciu pilota (obecnie wymagane ręczne wywołanie `/rebalance`).
+- [ ] **Kanały**: Pełna obsługa kanału Low Band (LB) w warstwie walidacji i matchmakingu.
 
 ### 2.3 Udźwiękowienie (Frontend 1)
 - [ ] **Text-To-Speech**: Wyczytywanie nicków pilotów na 3 minuty przed startem (z pominięciem zapauzowanych).

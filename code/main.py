@@ -29,7 +29,7 @@ if (session):
     set_session(session)
 
 MAX_PILOTS_PER_GROUP = 4
-ALLOWED_CHANNELS = ["R1", "R3", "R6", "R7", "LB"]
+ALLOWED_CHANNELS = ["R1", "R3", "R6", "R7"]
 
 
 app = FastAPI(title="WKM Racing Management System API")
@@ -79,8 +79,14 @@ async def serve_favicon():
     return FileResponse("static/wkm.ico")
 
 
+class Main:
+    def run(self, port=8000, reload=True):
+        print(f"Panel uruchomiony na http://localhost:{port}/")
+        print(f"Panel admina http://localhost:{port}/admin")
+        uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
+
 if __name__ == "__main__":
-    print("Serwer uruchomiony na http://localhost:8000")
-    print("Panel uruchomiony na http://localhost:8000/display")
-    print("Panel admina http://localhost:8000/admin")
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    import uvicorn
+    main = Main()
+    main.run()

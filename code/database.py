@@ -297,8 +297,10 @@ class RaceDatabase:
                     next_heat = heats[1]
                     next_heat_number = next_heat.heat_number
 
+                # Poprawka: użycie lokalnej zmiennej active_pilots zamiast session.active_pilots
                 current_group = self.get_group_by_id(
-                    row["current_group_id"], session.active_pilots) if row["current_group_id"] else None
+                    row["current_group_id"], active_pilots) if row["current_group_id"] else None
+
                 session = Session(
                     name=row['name'],
                     flight_duration_sec=row['flight_duration_sec'],
@@ -333,6 +335,7 @@ class RaceDatabase:
                     is_active = ?,
                     current_heat_number = ?,
                     next_heat_number = ?,
+                    current_group_id = ?,
                     current_phase = ?,
                     phase_before_pause = ?, 
                     current_group_index=?,
@@ -345,6 +348,7 @@ class RaceDatabase:
                 session.is_active,
                 session.current_heat_number if session.current_heat_number else None,
                 session.next_heat_number if session.next_heat_number else None,
+                session.current_group.group_id if session.current_group else None,
                 session.current_phase,
                 session.phase_before_pause,
                 session.current_group_index,

@@ -78,6 +78,10 @@ class Session(BaseModel):
             next_group=next_group, next_group_index=next_group_index,
             current_phase=current_phase, phase_before_pause=phase_before_pause)
 
+    def is_session_active(self) -> bool:
+        """Zwraca informację, czy sesja została już rozpoczęta."""
+        return self.is_active
+
     def dirty_list(self):
         return [key for key, value in self._dirty_list.items() if value]
 
@@ -106,21 +110,25 @@ class Session(BaseModel):
         self.current_group_index = 0
         self.current_group = self.groups[0]
         self.next_heat_number = 2
-        self.current_heat = Heat(
-            group=self.groups[0], heat_number=1, session_id=self.session_id, prep_time=self.prep_duration_sec, flight_time=self.flight_duration_sec)
+
+        # Tworzymy bieg jako snapshot pierwszej grupy
+        self.current_heat = self.create_heat(
+            group=self.groups[0],
+            heat_number=1
+        )
         print(f"Heat: {self.current_heat}")
 
         self.next_group_index = 1 % len(self.groups)
         self.next_group = self.groups[self.next_group_index]
 
-        self.next_heat = self.create_heat(group=self.next_group,
-                                          heat_number=self.next_heat_number)
+        self.next_heat = self.create_heat(
+            group=self.next_group, heat_number=self.next_heat_number)
 
         self.current_heat.start_prep()
         self.is_active = True
         self.current_phase = "FLIGHT"
         return {
-            "status": "error",
+            "status": "ok",
             "id": self.session_id,
             "name": self.name,
             "message": "Sesja rozpoczęta",
@@ -230,11 +238,13 @@ class Session(BaseModel):
         This method initializes a new Heat object using the pilots from the specified group and sets it as the next heat to be contested. It ensures that the change is persisted to the database if auto-saving is configured. It should be called whenever a new heat needs to be planned based on a group of pilots.
         """
         return Heat(
-            group=group,
-            heat_number=heat_number,
             session_id=self.session_id,
+            heat_number=heat_number,
+            group_id=group.group_id,
+            channels=group.channels.copy(),  # KLUCZOWE: snapshot rosteru
             prep_time=self.prep_duration_sec,
-            flight_time=self.flight_duration_sec)
+            flight_time=self.flight_duration_sec
+        )
 
     def move_pilot(self, pilot_id: int, from_channel: str, from_group: int, to_channel: str, to_group: int):
 
@@ -290,6 +300,7 @@ class Session(BaseModel):
         if to_group is not None and to_channel is not None:
             self.groups[to_group].channels[to_channel] = pilot
 
+        self._dirty_list["groups"] = True
         return {"status": "ok", "groups": self.groups}
 
     def add_new_group(self):
@@ -298,6 +309,7 @@ class Session(BaseModel):
         self.groups.append(Group(group_id=len(self.groups)+1,  channels={},
                            group_sequence=len(self.groups)+1))
 
+        self._dirty_list["groups"] = True
         return {"status": "ok", "groups": self.groups}
 
     def remove_group(self, group_sequence: int):

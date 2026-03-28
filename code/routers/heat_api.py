@@ -33,11 +33,6 @@ def process_heat_data(heat: Heat) -> Dict[str, Any]:
     heat_data: dict[str, Any] = heat.as_dict()
     heat_data['live_seconds_left'] = seconds_left
 
-    # Obsługa JSON z pilotami
-    if isinstance(heat_data.get('heat_pilots_data_json'), str):
-        heat_data['pilots_data'] = json.loads(
-            heat_data['heat_pilots_data_json'])
-
     return {
         "status": heat.get_status(),
         "heat_number": heat.heat_number,
