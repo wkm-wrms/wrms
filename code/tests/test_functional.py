@@ -108,8 +108,7 @@ def test_timer_accuracy():
     p1 = resp.json()["id"]
     client.post("/api/session/add_pilot",
                 json={"pilot_id": p1, "vtx": "Analog"})
-    client.post("/api/groups/move_pilot",
-                json={"pilot_id": p1, "to_group": 1, "to_channel": "R1"})
+    client.post("/api/groups/rebalance", json={})
     assert client.post("/api/session/start").status_code == 200
 
     # Pierwszy pomiar

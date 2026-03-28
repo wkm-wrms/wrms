@@ -182,6 +182,8 @@
         <section class="card paddock-section">
             <section class="card">
                 <h3>Harmonogram Grup</h3><button class="btn btn-primary" onClick="newGroup();">Nowa Grupa</button>
+                <button class="btn btn-warning" onclick="rebalanceGroups()">Rebalnsuj Grupy</button>
+
                 <table class="race-table">
                     <thead>
                         <tr>
@@ -356,7 +358,6 @@
             setTimeout(() => {
 
                 loadSessionData();
-                updateUI();
             }, 500)
 
         }

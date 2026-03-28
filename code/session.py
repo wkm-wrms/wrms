@@ -44,7 +44,7 @@ class Session(BaseModel):
     current_heat_number: Optional[int] = None
     next_heat: Optional[Heat] = None
     next_heat_number: Optional[int] = None
-    groups: list[Group] = None
+    groups: list[Group] = []
     current_group: Optional[Group] = None
     current_group_index: Optional[int] = None
     next_group: Optional[Group] = None
@@ -170,9 +170,13 @@ class Session(BaseModel):
         if pilot_id in self.active_pilots:
             self.active_pilots.pop(pilot_id)
         for group in self.groups:
+            ch_to_pop = None
             for ch in group.channels.keys():
                 if group.channels[ch].pilot_id == pilot_id:
-                    group.channels.pop(ch)
+                    ch_to_pop = ch
+                    break
+            if ch_to_pop:
+                group.channels.pop(ch_to_pop)
 #
 #
 # Heats Management
@@ -322,6 +326,7 @@ class Session(BaseModel):
             self.groups[index].group_sequence -= 1
             index += 1
         self.groups.pop(group_sequence-1)
+        self._dirty_list["groups"] = True
         return {"status": "ok", "groups": self.groups}
 
     def rebalance_groups(self):
@@ -363,6 +368,7 @@ class Session(BaseModel):
             ))
 
             pilot_index += current_group_size
+        self._dirty_list["groups"] = True
         print(
             f"Zbalansowane grupy: {[{'id': g.group_id,  'channels': g.channels} for g in self.groups]}")
 

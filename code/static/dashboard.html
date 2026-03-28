@@ -436,7 +436,7 @@
             const timerEl = document.getElementById('timer');
 
             if (currentTimerEnds) {
-                secs = (currentTimerEnds - Date.now()) / 1000
+                let secs = (currentTimerEnds - Date.now()) / 1000
                 if (secs <= 0) {
                     updateDashboard();
                     secs = (currentTimerEnds - Date.now()) / 1000
@@ -520,7 +520,6 @@
             });
 
             const next_heat = response.next_heat;
-            const container = document.getElementById('next-pilots-list');
 
             if (!next_heat || !next_heat.channels) {
                 clearNextGrid();

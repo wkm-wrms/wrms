@@ -204,6 +204,7 @@ class RaceDatabase:
 
 # --- OBSŁUGA PILOTÓW --- ---------------------------------------------
 
+
     def add_pilot(self, name, country=""):
         """Dodaje nowego pilota do bazy danych."""
         with self._get_conn() as conn:
@@ -239,12 +240,11 @@ class RaceDatabase:
                 "SELECT pilot_id, vtx FROM active_pilot WHERE session_id = ?", (
                     session_id,)
             ).fetchall()
-            ret = {}
             for row in rows:
                 res[row["pilot_id"]] = ActivePilot(
                     self.get_pilot_by_id(row['pilot_id']), row["vtx"])
-            return res
-        return {}
+        return res
+
 
 # -- Obsługa sesji
 
@@ -297,10 +297,8 @@ class RaceDatabase:
                     next_heat = heats[1]
                     next_heat_number = next_heat.heat_number
 
-                # Poprawka: użycie lokalnej zmiennej active_pilots zamiast session.active_pilots
                 current_group = self.get_group_by_id(
                     row["current_group_id"], active_pilots) if row["current_group_id"] else None
-
                 session = Session(
                     name=row['name'],
                     flight_duration_sec=row['flight_duration_sec'],
@@ -361,7 +359,7 @@ class RaceDatabase:
         """ Pobierz z bazy danych wszystkie sesje"""
         with self._get_conn() as conn:
             rows = conn.execute(
-                "SELECT session_id FROM sessions "
+                "SELECT session_id FROM session "
             ).fetchall()
 #            return [row["id"] for row in rows]
             return [self.get_session_by_id(row["session_id"]) for row in rows]
@@ -387,7 +385,6 @@ class RaceDatabase:
 
 
 # --- OBSŁUGA GRUP
-
 
     def get_groups_by_session_id(self, session_id: str, active_pilots: dict[int, ActivePilot]):
         """ Get all groups attached to specyfic session """
@@ -443,8 +440,10 @@ class RaceDatabase:
                     (session.session_id,
                      json.dumps(channels), group.group_sequence,)
                 )
+            conn.commit()
 
     # --- OBSŁUGA BIEGÓW (Heats) ---
+
     def create_or_update_heat(self, heat: Heat, active_pilots: dict[int, ActivePilot]):
         """
         Tworzy nowy rekord w tabeli heat.
@@ -525,18 +524,15 @@ class RaceDatabase:
                   remaining_seconds_at_pause, last_resume_at, heat.session_id, heat.heat_number)
         with self._get_conn() as conn:
             conn.execute(query_heat, params)
-            conn.commit()
-
-        for k in heat.channels.keys():
-            v = heat.channels[k]
-            pilot_id = v.pilot_id
-            vtx_channel = k
-            pilot_params = (vtx_channel, v.vtx,
-                            flight_started_at, finished_at, heat.flight_time,
-                            heat.status, heat.session_id, heat.heat_number, pilot_id, )
-            with self._get_conn() as conn:
+            for k in heat.channels.keys():
+                v = heat.channels[k]
+                pilot_id = v.pilot_id
+                vtx_channel = k
+                pilot_params = (vtx_channel, v.vtx,
+                                flight_started_at, finished_at, heat.flight_time,
+                                heat.status, heat.session_id, heat.heat_number, pilot_id, )
                 conn.execute(query_pilots, pilot_params)
-                conn.commit()
+            conn.commit()
 
     def get_active_heats(self, session_id: str, active_pilots: dict[int, ActivePilot]):
         """
@@ -640,11 +636,11 @@ class RaceDatabase:
     def add_admin(self, username, password):
         """ Tworzy nowego administratora """
 
-        hashed = hashlib.sha256(password)
+        hashed = hashlib.sha256(password.encode()).hexdigest()
         try:
             with self._get_conn() as conn:
                 conn.execute(
-                    "INSERT INTO users (username, password_hash) VALUES (?, ?)", (username, hashed))
+                    "INSERT INTO user (username, password_hash) VALUES (?, ?)", (username, hashed))
         except sqlite3.IntegrityError:
             return False
         return True
@@ -653,8 +649,8 @@ class RaceDatabase:
         """ Weryfikuje dane logowania administratora """
         with self._get_conn() as conn:
             row = conn.execute(
-                "SELECT password_hash FROM users WHERE username = ?", (username,)).fetchone()
-            hashed = hashlib.sha256(password)
+                "SELECT password_hash FROM user WHERE username = ?", (username,)).fetchone()
+            hashed = hashlib.sha256(password.encode()).hexdigest()
             if row and (row['password_hash'] == hashed):
                 return True
         return False

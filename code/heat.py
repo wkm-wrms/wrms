@@ -29,12 +29,13 @@ class Heat(BaseModel):
 
     def __init__(self, session_id: str, heat_number: int, prep_time: int, flight_time: int,
                  group_id: int = None, group: Group = None, channels: dict[str, ActivePilot] = None, status: str = "PLANNED",
-                 created_at: datetime = datetime.now(),
+                 created_at: datetime = None,
                  prep_started_at: Optional[datetime] = None, flight_started_at: Optional[datetime] = None,
                  finished_at: Optional[datetime] = None, remaining_seconds_at_pause: Optional[float] = None,
                  last_resume_at: Optional[datetime] = None
                  ):
-
+        if created_at is None:
+            created_at = datetime.now()
         if group_id is None:
             if group:
                 group_id = group.group_id
@@ -111,7 +112,7 @@ class Heat(BaseModel):
     def get_prep_started_at(self):
         return self.prep_started_at
 
-    def remaining_seconds_at_pause(self):
+    def get_remaining_seconds_at_pause(self):
         return self.remaining_seconds_at_pause
 
     def as_dict(self):
