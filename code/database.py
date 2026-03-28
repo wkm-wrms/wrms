@@ -52,7 +52,9 @@ class RaceDatabase:
 
     db_path: str = None
 
-    def __init__(self, db_path: str = "data/race_system.db"):
+    def __init__(self, db_path: str = None):
+        if db_path is None:
+            db_path = os.environ.get("WRMS_DB_PATH", "data/race_system.db")
         self.db_path = db_path
         db_dir = os.path.dirname(db_path)
         if db_dir:

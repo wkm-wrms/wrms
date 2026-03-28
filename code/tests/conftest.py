@@ -1,19 +1,50 @@
 """
 Wspólna konfiguracja testów i fixtures dla WRMS test suite.
 
-Każdy test startuje z czystym stanem sesji (autouse fixture reset_session).
-Pilot IDs są unikalne dzięki nanosecond timestamp w nazwie.
+Izolacja bazy danych:
+  Zmienna środowiskowa WRMS_DB_PATH jest ustawiana na tymczasowy plik
+  PRZED importem aplikacji. Dzięki temu database.py tworzy db_instance
+  wskazujący na bazę testową, a produkcyjna data/race_system.db pozostaje
+  niezmieniona przez cały czas trwania testów.
+
+Izolacja stanu sesji:
+  Fixture reset_session (autouse) zeruje in-memory globalny stan sesji
+  przed i po każdym teście.
 """
 import sys
 import os
 import time
+import tempfile
+import atexit
 import pytest
-from fastapi.testclient import TestClient
 
+# ---------------------------------------------------------------------------
+# Krok 1: ustaw ścieżkę testowej bazy PRZED jakimkolwiek importem aplikacji
+# ---------------------------------------------------------------------------
+_db_fd, _TEST_DB_PATH = tempfile.mkstemp(suffix=".db", prefix="wrms_test_")
+os.close(_db_fd)
+os.remove(_TEST_DB_PATH)          # usuń pusty plik — RaceDatabase go odtworzy
+os.environ["WRMS_DB_PATH"] = _TEST_DB_PATH
+
+
+def _cleanup_test_db():
+    """Usuwa pliki testowej bazy po zakończeniu sesji testowej."""
+    for suffix in ["", "-shm", "-wal"]:
+        path = _TEST_DB_PATH + suffix
+        if os.path.exists(path):
+            os.remove(path)
+
+
+atexit.register(_cleanup_test_db)
+
+# ---------------------------------------------------------------------------
+# Krok 2: importy aplikacji (już z podmienionym env var)
+# ---------------------------------------------------------------------------
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from main import app
-from session import set_session
+from main import app                    # noqa: E402
+from session import set_session         # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
 
 client = TestClient(app)
 
@@ -24,7 +55,7 @@ def uid() -> str:
 
 
 # ---------------------------------------------------------------------------
-# Autouse: izolacja stanu globalnego między testami
+# Izolacja stanu sesji między testami
 # ---------------------------------------------------------------------------
 
 @pytest.fixture(autouse=True)
