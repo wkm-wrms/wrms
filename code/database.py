@@ -194,6 +194,8 @@ class RaceDatabase:
             _adds = [
                 "ALTER TABLE user ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP",
                 "ALTER TABLE heat ADD COLUMN phase_before_pause TEXT",
+                "ALTER TABLE pilot ADD COLUMN risk_factor INTEGER DEFAULT 3",
+                "ALTER TABLE pilot ADD COLUMN notes TEXT DEFAULT ''",
             ]
             for _sql in _adds:
                 try:
@@ -206,13 +208,15 @@ class RaceDatabase:
     # Pilot operations
     # ------------------------------------------------------------------
 
-    def add_pilot(self, name: str, country: str = "") -> int:
+    def add_pilot(self, name: str, country: str = "", risk_factor: int = 3, notes: str = "") -> int:
         """
         Insert a new pilot record.
 
         Args:
-            name:    Unique pilot name (non-empty).
-            country: Optional two-letter country code.
+            name:        Unique pilot name (non-empty).
+            country:     Optional two-letter country code.
+            risk_factor: Flying aggressiveness level (1–6, default 3).
+            notes:       Optional free-text notes for the race director.
 
         Returns:
             The newly assigned pilot_id.
@@ -223,7 +227,8 @@ class RaceDatabase:
         with self._get_conn() as conn:
             try:
                 cursor = conn.execute(
-                    "INSERT INTO pilot (name, country) VALUES (?, ?)", (name, country)
+                    "INSERT INTO pilot (name, country, risk_factor, notes) VALUES (?, ?, ?, ?)",
+                    (name, country, risk_factor, notes)
                 )
             except sqlite3.IntegrityError as exc:
                 raise ValueError(
@@ -250,6 +255,8 @@ class RaceDatabase:
                     pilot_id=row['pilot_id'],
                     name=row['name'],
                     country=row['country'],
+                    risk_factor=row['risk_factor'] if row['risk_factor'] is not None else 3,
+                    notes=row['notes'] if row['notes'] is not None else "",
                 )
             return None
 
@@ -268,9 +275,48 @@ class RaceDatabase:
                 "SELECT * FROM pilot WHERE name LIKE ?", (f"%{query}%",)
             ).fetchall()
             return [
-                Pilot(pilot_id=r['pilot_id'], name=r['name'], country=r['country'])
+                Pilot(
+                    pilot_id=r['pilot_id'],
+                    name=r['name'],
+                    country=r['country'],
+                    risk_factor=r['risk_factor'] if r['risk_factor'] is not None else 3,
+                    notes=r['notes'] if r['notes'] is not None else "",
+                )
                 for r in rows
             ]
+
+    def update_pilot(self, pilot_id: int, name: str, country: str, risk_factor: int, notes: str) -> None:
+        """
+        Update an existing pilot record.
+
+        Args:
+            pilot_id:    The pilot's database ID.
+            name:        New unique callsign.
+            country:     New country code.
+            risk_factor: New aggressiveness level (1–6).
+            notes:       New free-text notes.
+
+        Raises:
+            ValueError: If name is taken by another pilot.
+        """
+        with self._get_conn() as conn:
+            try:
+                conn.execute(
+                    "UPDATE pilot SET name=?, country=?, risk_factor=?, notes=? WHERE pilot_id=?",
+                    (name, country, risk_factor, notes, pilot_id)
+                )
+            except sqlite3.IntegrityError as exc:
+                raise ValueError("Pilot name already taken.") from exc
+
+    def delete_pilot(self, pilot_id: int) -> None:
+        """
+        Delete a pilot record from the database.
+
+        Args:
+            pilot_id: The pilot's database ID.
+        """
+        with self._get_conn() as conn:
+            conn.execute("DELETE FROM pilot WHERE pilot_id=?", (pilot_id,))
 
     def get_active_pilots(self, session_id: str) -> dict[int, ActivePilot]:
         """

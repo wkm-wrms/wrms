@@ -15,15 +15,19 @@ class Pilot(BaseModel):
     pilot_id: int
     name: str
     country: Optional[str]
+    risk_factor: int = 3
+    notes: str = ""
 
-    def __init__(self, pilot_id: int, name: str, country: str = None):
+    def __init__(self, pilot_id: int, name: str, country: str = None, risk_factor: int = 3, notes: str = ""):
         """
         Args:
-            pilot_id: Database primary key.
-            name:     Unique pilot callsign.
-            country:  Optional two-letter country code.
+            pilot_id:    Database primary key.
+            name:        Unique pilot callsign.
+            country:     Optional two-letter country code.
+            risk_factor: Flying aggressiveness level (1–6, default 3).
+            notes:       Optional free-text notes for the race director.
         """
-        super().__init__(pilot_id=pilot_id, name=name, country=country)
+        super().__init__(pilot_id=pilot_id, name=name, country=country, risk_factor=risk_factor, notes=notes)
 
     def to_dict(self) -> dict:
         """Return a plain dictionary representation."""

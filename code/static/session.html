@@ -810,8 +810,13 @@
                 <div class="grid">
                     <section>
                         <div>
-                            <input type="text" id="newPilotName" placeholder="Nick nowego pilota">
-                            <button onclick="createPilot()">Dodaj Nowego Pilota</button>
+                            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
+                                <div style="display:flex; gap:8px; align-items:center;">
+                                    <input type="text" id="newPilotName" placeholder="Nick nowego pilota">
+                                    <button class="btn btn-primary btn-sm" onclick="createPilot()">Dodaj Nowego Pilota</button>
+                                </div>
+                                <button class="btn btn-secondary btn-sm" onclick="openPilotsManager()">Zarządzaj pilotami</button>
+                            </div>
                             <div>
 
                                 <label>Wyszukaj Pilota</label>
@@ -831,7 +836,7 @@
 
                 <button class="btn btn-primary" onclick="openGroupModal()"> Zarządzaj Grupami </button>
                 <button class="btn btn-warning" onclick="rebalanceGroups()">Rebalnsuj Grupy</button>
-                <button class="btn btn-success" onclick="startSession()">START WYŚCIGÓW</button>
+                <button id="btnStartSession" class="btn btn-success" onclick="startSession()">START WYŚCIGÓW</button>
                 <button class="btn btn-danger" onclick="terminateSession()">ZAKOŃCZ SESJĘ</button>
             </div>
 
@@ -913,6 +918,17 @@
         </div>
     </div>
 
+    <!-- Pilots manager modal -->
+    <div id="pilots-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closePilotsManager()">
+        <div class="modal-content" style="width:90%;max-width:860px;max-height:90vh;display:flex;flex-direction:column;">
+            <div class="modal-header">
+                <h3>Zarządzanie Pilotami</h3>
+                <button class="btn btn-secondary btn-sm" onclick="closePilotsManager()">✕</button>
+            </div>
+            <iframe id="pilots-frame" src="" style="flex:1;border:none;border-radius:0 0 8px 8px;min-height:500px;"></iframe>
+        </div>
+    </div>
+
     <div id="groupModal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
@@ -976,10 +992,14 @@
                 document.getElementById('view-prep').classList.add('active');
                 document.getElementById('prepTitle').innerText = s.name;
                 loadSessionData();
-                if (s.current_phase === 'FLIGHT' || s.current_phase === 'PAUSED') {
+                const isRunning = s.current_phase === 'FLIGHT' || s.current_phase === 'PAUSED';
+                if (isRunning) {
                     document.getElementById('view-started').classList.add('active');
                     updateHeats();
                 }
+                const btnStart = document.getElementById('btnStartSession');
+                btnStart.disabled = isRunning;
+                btnStart.style.opacity = isRunning ? '0.45' : '';
                 searchPilots();
             } else {
                 document.getElementById('view-none').classList.add('active');
@@ -1488,6 +1508,18 @@
 
 
 
+
+        function openPilotsManager() {
+            const frame = document.getElementById('pilots-frame');
+            frame.src = '/pilots.html';
+            document.getElementById('pilots-modal').style.display = 'flex';
+        }
+
+        function closePilotsManager() {
+            document.getElementById('pilots-modal').style.display = 'none';
+            document.getElementById('pilots-frame').src = '';
+            searchPilots(); // refresh the add-to-session search list
+        }
 
         function openGroupModal() {
             const modal = document.getElementById('groupModal');

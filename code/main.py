@@ -80,6 +80,12 @@ async def serve_admin_view():
     return FileResponse("static/session.html")
 
 
+@app.get("/pilots.html")
+async def serve_pilots_manager():
+    """Serves the pilot management panel (loaded inside an iframe)."""
+    return FileResponse("static/pilots.html")
+
+
 @app.get("/favicon.ico")
 async def serve_favicon():
     """Serves the site icon."""

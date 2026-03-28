@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zarządzanie Pilotami</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: sans-serif; font-size: 14px; padding: 16px; background: #f8f9fa; color: #212529; }
+        h2 { font-size: 1.1em; margin-bottom: 12px; }
+
+        .toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+        .toolbar input { flex: 1; min-width: 160px; padding: 6px 10px; border: 1px solid #ced4da; border-radius: 6px; }
+
+        .btn { padding: 6px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; }
+        .btn-primary { background: #007bff; color: white; }
+        .btn-primary:hover { background: #0056b3; }
+        .btn-secondary { background: #6c757d; color: white; }
+        .btn-secondary:hover { background: #545b62; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-danger:hover { background: #a71d2a; }
+        .btn-sm { padding: 3px 9px; font-size: 12px; }
+
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+        th { background: #f1f3f5; padding: 8px 12px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: #6c757d; border-bottom: 1px solid #dee2e6; }
+        td { padding: 8px 12px; border-bottom: 1px solid #f1f3f5; vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #f8f9fa; }
+
+        .risk-pip { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 2px; }
+        .risk-1 { background: #28a745; } .risk-2 { background: #5cb85c; }
+        .risk-3 { background: #ffc107; } .risk-4 { background: #fd7e14; }
+        .risk-5 { background: #dc3545; } .risk-6 { background: #6f0000; }
+
+        .notes-cell { max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #6c757d; font-size: 12px; }
+
+        .empty-msg { text-align: center; padding: 32px; color: #adb5bd; font-style: italic; }
+
+        /* Form panel */
+        .form-panel { background: white; border-radius: 8px; border: 1px solid #dee2e6; padding: 16px; margin-bottom: 16px; }
+        .form-panel h3 { font-size: 1em; margin-bottom: 12px; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .form-grid .full { grid-column: 1 / -1; }
+        label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 3px; color: #495057; }
+        input[type=text], textarea { width: 100%; padding: 6px 10px; border: 1px solid #ced4da; border-radius: 6px; font-size: 13px; }
+        textarea { resize: vertical; min-height: 56px; }
+        .risk-row { display: flex; align-items: center; gap: 10px; }
+        input[type=range] { flex: 1; }
+        .risk-value { font-weight: 700; min-width: 20px; text-align: center; }
+        .form-actions { display: flex; gap: 8px; margin-top: 12px; }
+    </style>
+</head>
+<body>
+
+<div class="toolbar">
+    <input type="text" id="searchInput" placeholder="Szukaj po nicku..." oninput="filterTable()">
+    <button class="btn btn-primary" onclick="showAddForm()">+ Dodaj pilota</button>
+</div>
+
+<div id="formPanel" style="display:none"></div>
+
+<table id="pilotsTable">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Nick</th>
+            <th>Kraj</th>
+            <th>Risk</th>
+            <th>Notatki</th>
+            <th>Akcje</th>
+        </tr>
+    </thead>
+    <tbody id="pilotsBody">
+        <tr><td colspan="6" class="empty-msg">Ładowanie...</td></tr>
+    </tbody>
+</table>
+
+<script>
+    let allPilots = [];
+
+    async function loadPilots() {
+        try {
+            const res = await fetch('/api/pilot/');
+            const data = await res.json();
+            allPilots = data.pilots || [];
+            renderTable(allPilots);
+        } catch (e) {
+            document.getElementById('pilotsBody').innerHTML =
+                '<tr><td colspan="6" class="empty-msg">Błąd ładowania danych.</td></tr>';
+        }
+    }
+
+    function filterTable() {
+        const q = document.getElementById('searchInput').value.toLowerCase();
+        renderTable(allPilots.filter(p => p.name.toLowerCase().includes(q)));
+    }
+
+    function riskPips(r) {
+        let html = '';
+        for (let i = 1; i <= 6; i++) {
+            html += `<span class="risk-pip risk-${i}" style="opacity:${i<=r?1:0.15}"></span>`;
+        }
+        return html;
+    }
+
+    function renderTable(pilots) {
+        const tbody = document.getElementById('pilotsBody');
+        if (!pilots.length) {
+            tbody.innerHTML = '<tr><td colspan="6" class="empty-msg">Brak pilotów w bazie.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = pilots.map((p, i) => `
+            <tr data-id="${p.pilot_id}">
+                <td>${i + 1}</td>
+                <td><strong>${p.name}</strong></td>
+                <td>${p.country || '—'}</td>
+                <td title="Risk: ${p.risk_factor ?? 3}/6">${riskPips(p.risk_factor ?? 3)}</td>
+                <td class="notes-cell" title="${p.notes || ''}">${p.notes || '—'}</td>
+                <td>
+                    <button class="btn btn-secondary btn-sm" onclick="showEditForm(${p.pilot_id})">Edytuj</button>
+                    <button class="btn btn-danger btn-sm" onclick="deletePilot(${p.pilot_id}, '${p.name.replace(/'/g, "\\'")}')">Usuń</button>
+                </td>
+            </tr>`).join('');
+    }
+
+    function buildForm(pilot) {
+        const isEdit = !!pilot;
+        const risk = pilot ? (pilot.risk_factor ?? 3) : 3;
+        return `
+        <div class="form-panel">
+            <h3>${isEdit ? 'Edytuj pilota: ' + pilot.name : 'Nowy pilot'}</h3>
+            <div class="form-grid">
+                <div>
+                    <label>Nick *</label>
+                    <input type="text" id="f_name" value="${isEdit ? pilot.name : ''}" placeholder="Callsign">
+                </div>
+                <div>
+                    <label>Kraj</label>
+                    <input type="text" id="f_country" value="${isEdit ? (pilot.country || '') : ''}" placeholder="PL" maxlength="3">
+                </div>
+                <div class="full">
+                    <label>Poziom ryzyka: <span id="f_risk_val">${risk}</span>/6</label>
+                    <div class="risk-row">
+                        <span style="font-size:11px;color:#6c757d">ostrożny</span>
+                        <input type="range" id="f_risk" min="1" max="6" value="${risk}"
+                            oninput="document.getElementById('f_risk_val').innerText=this.value">
+                        <span style="font-size:11px;color:#6c757d">agresywny</span>
+                    </div>
+                </div>
+                <div class="full">
+                    <label>Notatki</label>
+                    <textarea id="f_notes" placeholder="Opcjonalne uwagi dla MC">${isEdit ? (pilot.notes || '') : ''}</textarea>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-primary" onclick="${isEdit ? 'submitEdit(' + pilot.pilot_id + ')' : 'submitAdd()'}">
+                    ${isEdit ? 'Zapisz zmiany' : 'Dodaj pilota'}
+                </button>
+                <button class="btn btn-secondary" onclick="hideForm()">Anuluj</button>
+            </div>
+        </div>`;
+    }
+
+    function showAddForm() {
+        const panel = document.getElementById('formPanel');
+        panel.innerHTML = buildForm(null);
+        panel.style.display = '';
+        document.getElementById('f_name').focus();
+    }
+
+    async function showEditForm(pilotId) {
+        const pilot = allPilots.find(p => p.pilot_id === pilotId);
+        if (!pilot) return;
+        const panel = document.getElementById('formPanel');
+        panel.innerHTML = buildForm(pilot);
+        panel.style.display = '';
+        document.getElementById('f_name').focus();
+    }
+
+    function hideForm() {
+        document.getElementById('formPanel').style.display = 'none';
+    }
+
+    function readForm() {
+        const name = document.getElementById('f_name').value.trim();
+        const country = document.getElementById('f_country').value.trim().toUpperCase();
+        const risk_factor = parseInt(document.getElementById('f_risk').value);
+        const notes = document.getElementById('f_notes').value.trim();
+        if (!name) { alert('Nick nie może być pusty.'); return null; }
+        if (country && (country.length < 1 || country.length > 3)) { alert('Kod kraju: 1–3 znaki.'); return null; }
+        return { name, country, risk_factor, notes };
+    }
+
+    async function submitAdd() {
+        const payload = readForm();
+        if (!payload) return;
+        try {
+            const res = await fetch('/api/pilot/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.status === 'error') { alert('Błąd: ' + data.message); return; }
+        } catch (e) { alert('Błąd sieci: ' + e.message); return; }
+        hideForm();
+        await loadPilots();
+    }
+
+    async function submitEdit(pilotId) {
+        const payload = readForm();
+        if (!payload) return;
+        try {
+            const res = await fetch('/api/pilot/' + pilotId, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.status === 'error') { alert('Błąd: ' + data.message); return; }
+        } catch (e) { alert('Błąd sieci: ' + e.message); return; }
+        hideForm();
+        await loadPilots();
+    }
+
+    async function deletePilot(pilotId, name) {
+        if (!confirm(`Usunąć pilota "${name}"? Operacja jest nieodwracalna.`)) return;
+        try {
+            const res = await fetch('/api/pilot/' + pilotId, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.status === 'error') { alert('Błąd: ' + data.message); return; }
+        } catch (e) { alert('Błąd sieci: ' + e.message); return; }
+        await loadPilots();
+    }
+
+    loadPilots();
+</script>
+</body>
+</html>
