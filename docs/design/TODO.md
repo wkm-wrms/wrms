@@ -31,12 +31,12 @@ Na podstawie analizy plików `requirements.md` oraz `use cases.md` względem akt
 ### 2.4 Interfejs Użytkownika (UI/UX)
 - [ ] **Dashboard**: Wyświetlanie kodu QR z dynamicznym linkiem.
 - [ ] **Dashboard**: Oznaczenie wizualne pilotów o statusie "Zapauzowany".
-- [ ] **Panel Admina**: Brak implementacji "Pauzy" i "Wznowienia" timera (obecnie zwracają 501).
+- [x] **Panel Admina**: Implementacja "Pauzy" i "Wznowienia" timera.
 - [x] **Bezpieczeństwo**: Implementacja logowania (Authentication) do panelu `/admin`.
 - [ ] **Panel Admina**: Brak podglądu historii sesji i generowania raportów po zakończeniu.
 
 ### 2.5 Audio i Stabilność
-- [ ] **Audio Unlock**: Mechanizm wymuszający interakcję użytkownika (przycisk "Start Audio") na tabletach przed rozpoczęciem sesji.
+- [x] **Audio Unlock**: Mechanizm wymuszający interakcję użytkownika (przycisk "Start Audio") na tabletach przed rozpoczęciem sesji.
 - [ ] **Frontend 2**: Widok publiczny oparty na tokenie.
 
 ## 3. Roadmapa Wdrożenia
@@ -75,6 +75,7 @@ Na podstawie analizy plików `requirements.md` oraz `use cases.md` względem akt
 | 2026-03-28 | Cleaned production DB: removed 493 test pilots and 203 test sessions (id>=13, date>=2026-03-28) |
 | 2026-03-28 | Refactor: removed Group.group_id, unified group identity on group_sequence; renamed Heat.group_id → group_sequence; added idempotent ALTER TABLE migrations for existing DBs |
 | 2026-03-28 | API error responses: replaced all HTTPException raises with {"status": "error", ...} JSON; removed HTTPException import from pilot_api and session_api; updated all affected tests |
+| 2026-03-28 | Pause/resume: full implementation — heat.pause()/resume() for PREP and FLIGHT phases, session-level pause/resume, DB persistence (phase_before_pause column), correct timer arithmetic on resume, frontend timer freeze/resume (session.html + dashboard.html), session-status badge updates, 30 new tests in test_pause_resume.py |
 
 ## 6. Ideas / Future Improvements
 
@@ -86,11 +87,11 @@ Na podstawie analizy plików `requirements.md` oraz `use cases.md` względem akt
 - **Code language audit**: Review all code comments and program messages — should be in English (currently mixed Polish/English). See section 1 discrepancies for context.
 - **`heat.py`**: Replace deprecated `self.dict()` with `self.model_dump()` (Pydantic v2 warning in all test runs)
 - ~~**Admin auth tests**: Add tests for `/api/admin/login` and `/api/admin/verify` endpoints~~ *(done 2026-03-28 — 25 tests in test_auth.py)*
-- **Pause/resume**: Implement the 501-returning pause/resume endpoints (session_api.py)
+- ~~**Pause/resume**: Implement the 501-returning pause/resume endpoints (session_api.py)~~ *(done 2026-03-28)*
 - **Automatic rebalance after pilot removal**: Currently requires manual `/rebalance` call
 - **5th pilot Low Band rule**: Full Low Band channel (LB) support in matchmaking
 - ~~**Fix audio autoplay in browser**~~ *(done 2026-03-28 — startup modal with "z komunikatami" / "bez dźwięku" choice; silent.mp3 unlocks browser autoplay policy on first gesture)*
 - **`is_active` flag semantics**: `session.stop()` sets `current_phase='FINISHED'` but leaves `is_active=True`; consider aligning or documenting
 
 ---
-*Updated: 2026-03-28*
+*Updated: 2026-03-28 (pause/resume completed)*

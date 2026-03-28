@@ -114,14 +114,32 @@ async def stop_session(_: str = Depends(require_admin)):
 
 @router.post("/pause")
 async def pause_timer(_: str = Depends(require_admin)):
-    """Pauses the timer (TBD)."""
-    return {"status": "error", "message": "Pause functionality is not yet implemented."}
+    """Pause the active session and freeze the current heat timer."""
+    session = get_session()
+    if session is None:
+        return {"status": "error", "message": "No active session."}
+    try:
+        session.pause()
+    except ValueError as e:
+        return {"status": "error", "message": str(e)}
+    db.save_session_data(session)
+    db.create_or_update_heat(session.current_heat, session.active_pilots)
+    return {"status": "ok"}
 
 
 @router.post("/resume")
 async def resume_timer(_: str = Depends(require_admin)):
-    """Resumes the timer (TBD)."""
-    return {"status": "error", "message": "Resume functionality is not yet implemented."}
+    """Resume a paused session and continue the heat timer from where it was frozen."""
+    session = get_session()
+    if session is None:
+        return {"status": "error", "message": "No active session."}
+    try:
+        session.resume()
+    except ValueError as e:
+        return {"status": "error", "message": str(e)}
+    db.save_session_data(session)
+    db.create_or_update_heat(session.current_heat, session.active_pilots)
+    return {"status": "ok"}
 
 
 @router.post("/skip_heat")

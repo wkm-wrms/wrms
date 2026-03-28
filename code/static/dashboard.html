@@ -607,7 +607,18 @@
             // Timer Logic
             if (heat.live_seconds_left !== null) {
                 const secs = heat.live_seconds_left;
-                currentTimerEnds = Date.now() + secs * 1000;
+                if (heat.status === 'PAUSED') {
+                    // Timer is frozen — update display once directly, don't rely on displayTimer()
+                    timerEl.innerText = formatTime(secs);
+                    currentTimerEnds = null;
+                    if (secs < 30) {
+                        timerEl.classList.add('timer-low');
+                    } else {
+                        timerEl.classList.remove('timer-low');
+                    }
+                } else {
+                    currentTimerEnds = Date.now() + secs * 1000;
+                }
             }
             // Current pilots Grid Logic
             CHANNELS.forEach(ch => {

@@ -5,7 +5,7 @@ A heat is an immutable snapshot of a group roster paired with timing state.
 It progresses through the state machine: PLANNED → PREP → FLIGHT → FINISHED.
 Pause/resume mid-FLIGHT is supported via remaining_seconds_at_pause.
 """
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 from pydantic import BaseModel
@@ -43,6 +43,7 @@ class Heat(BaseModel):
 
     remaining_seconds_at_pause: Optional[float] = None
     last_resume_at: Optional[datetime] = None
+    phase_before_pause: Optional[str] = None
 
     def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
@@ -60,6 +61,7 @@ class Heat(BaseModel):
         finished_at: Optional[datetime] = None,
         remaining_seconds_at_pause: Optional[float] = None,
         last_resume_at: Optional[datetime] = None,
+        phase_before_pause: Optional[str] = None,
     ):
         """
         Create a Heat, optionally deriving group_sequence and channels from a Group.
@@ -108,6 +110,7 @@ class Heat(BaseModel):
             finished_at=finished_at,
             remaining_seconds_at_pause=remaining_seconds_at_pause,
             last_resume_at=last_resume_at,
+            phase_before_pause=phase_before_pause,
         )
 
     # ------------------------------------------------------------------
@@ -131,20 +134,35 @@ class Heat(BaseModel):
 
     def pause(self):
         """
-        Pause a FLIGHT-phase heat, preserving remaining seconds.
+        Pause a PREP or FLIGHT-phase heat, preserving remaining seconds.
 
         Raises:
-            ValueError: If the heat is not currently in FLIGHT.
+            ValueError: If the heat is not currently in PREP or FLIGHT.
         """
-        if self.status != 'FLIGHT':
-            raise ValueError("Cannot pause: heat is not in FLIGHT phase.")
+        if self.status not in ('PREP', 'FLIGHT'):
+            raise ValueError("Cannot pause: heat is not in PREP or FLIGHT phase.")
+        self.phase_before_pause = self.status
         self.remaining_seconds_at_pause = self.get_remaining_seconds()
         self.status = 'PAUSED'
 
     def resume(self):
-        """Resume a PAUSED heat and record the resume timestamp."""
-        self.last_resume_at = datetime.now()
-        self.status = 'FLIGHT'
+        """
+        Resume a PAUSED heat, restoring the correct phase and recalculating timers.
+
+        For FLIGHT: sets last_resume_at so get_remaining_seconds() counts down
+        from the frozen remainder.
+        For PREP: rewinds prep_started_at so get_remaining_seconds() returns the
+        frozen remainder and continues counting down naturally.
+        """
+        now = datetime.now()
+        if self.phase_before_pause == 'FLIGHT':
+            self.last_resume_at = now
+            self.status = 'FLIGHT'
+        elif self.phase_before_pause == 'PREP':
+            elapsed_before_pause = self.prep_time - self.remaining_seconds_at_pause
+            self.prep_started_at = now - timedelta(seconds=elapsed_before_pause)
+            self.status = 'PREP'
+        self.phase_before_pause = None
 
     # ------------------------------------------------------------------
     # Timer

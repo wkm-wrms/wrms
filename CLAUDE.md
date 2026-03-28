@@ -54,16 +54,25 @@ This means state transitions only happen when there is HTTP activity.
 ### Session/heat state machine
 
 ```
-Session: IDLE → FLIGHT (started) → FINISHED (stopped)
-Heat:     PLANNED → PREP → FLIGHT → FINISHED
+Session: IDLE → FLIGHT (started) → PAUSED → FLIGHT (resumed) → FINISHED (stopped)
+Heat:     PLANNED → PREP → FLIGHT → PAUSED → PREP/FLIGHT (resumed) → FINISHED
 ```
 
 - `session.start()` → heat #1 enters PREP, heat #2 is pre-created in PLANNED
-- `session.loop()` → drives timers; on PREP expiry calls `heat.start_flight()`; on FLIGHT expiry calls `rotate_heats()`
+- `session.loop()` → drives timers; on PREP expiry calls `heat.start_flight()`; on FLIGHT expiry calls `rotate_heats()`; returns `False` when `current_phase != 'FLIGHT'` (no-op while paused)
 - `rotate_heats()` → archives current heat (FINISHED), advances to next, pre-creates next+1
 - `session.stop()` → sets `current_phase='FINISHED'`, saves to DB, clears in-memory session.
   Note: `is_active` flag is NOT reset to False by stop() — only `current_phase` changes.
 - On server restart, `main.py` calls `db.get_active_session()` which queries `WHERE current_phase <> 'FINISHED'`.
+
+### Pause/resume
+
+- `session.pause()` → requires `current_phase == 'FLIGHT'`; saves `phase_before_pause`; calls `heat.pause()`; sets `current_phase = 'PAUSED'`
+- `session.resume()` → requires `current_phase == 'PAUSED'`; calls `heat.resume()`; restores `current_phase` from `phase_before_pause`
+- `heat.pause()` → saves `phase_before_pause` (PREP or FLIGHT), `remaining_seconds_at_pause`, sets `status = 'PAUSED'`
+- `heat.resume()` for FLIGHT → sets `last_resume_at = now`, restores status; `get_remaining_seconds()` counts down from `remaining_seconds_at_pause`
+- `heat.resume()` for PREP → rewinds `prep_started_at = now - elapsed_before_pause`; `get_remaining_seconds()` works unchanged
+- `phase_before_pause` persisted in DB (`heat` table column, idempotent migration)
 
 ### Group / Channel system
 
@@ -107,6 +116,7 @@ code/
     test_persistence.py — 32 tests: all write operations verified via direct SQL + fresh DB instances
     test_functional.py  — original 13 tests (overlap with newer files, kept for history)
     test_auth.py        — 25 tests: login, logout, me, register, set_password, list, remove, 401 enforcement
+    test_pause_resume.py — 30 tests: heat pause/resume (unit), session pause/resume (API), auth, persistence, duration accounting
 docs/
   design/
     requirements.md     — Functional requirements (Req 2.x, 3.x)

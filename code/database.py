@@ -153,6 +153,7 @@ class RaceDatabase:
                     finished_at REAL,
                     remaining_seconds_at_pause REAL,
                     last_resume_at REAL,
+                    phase_before_pause TEXT,
                     PRIMARY KEY (session_id, heat_number),
                     FOREIGN KEY (session_id) REFERENCES session(session_id)
                 )""")
@@ -192,6 +193,7 @@ class RaceDatabase:
             # Idempotent column additions for databases created before the auth feature.
             _adds = [
                 "ALTER TABLE user ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP",
+                "ALTER TABLE heat ADD COLUMN phase_before_pause TEXT",
             ]
             for _sql in _adds:
                 try:
@@ -616,8 +618,9 @@ class RaceDatabase:
                     prep_time, flight_time,
                     created_at, prep_started_at, flight_started_at, finished_at,
                     remaining_seconds_at_pause, last_resume_at,
+                    phase_before_pause,
                     session_id, heat_number
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """
             query_pilots = """
                 INSERT INTO pilot_heat (
@@ -633,7 +636,8 @@ class RaceDatabase:
                     prep_time=?, flight_time=?,
                     created_at=?, prep_started_at=?, flight_started_at=?,
                     finished_at=?,
-                    remaining_seconds_at_pause=?, last_resume_at=?
+                    remaining_seconds_at_pause=?, last_resume_at=?,
+                    phase_before_pause=?
                 WHERE session_id=? AND heat_number=?
             """
             query_pilots = """
@@ -649,6 +653,7 @@ class RaceDatabase:
             heat.prep_time, heat.flight_time,
             created_at, prep_started_at, flight_started_at, finished_at,
             heat.remaining_seconds_at_pause, last_resume_at,
+            heat.phase_before_pause,
             heat.session_id, heat.heat_number,
         )
 
@@ -715,7 +720,8 @@ class RaceDatabase:
             SELECT session_id, heat_number, group_sequence, status,
                    prep_time, flight_time, channels_json, created_at,
                    prep_started_at, flight_started_at, finished_at,
-                   remaining_seconds_at_pause, last_resume_at
+                   remaining_seconds_at_pause, last_resume_at,
+                   phase_before_pause
             FROM heat
             WHERE session_id = ? AND heat_number = ?
         """
@@ -749,6 +755,7 @@ class RaceDatabase:
                 finished_at=_ts(row["finished_at"]),
                 remaining_seconds_at_pause=row["remaining_seconds_at_pause"],
                 last_resume_at=_ts(row["last_resume_at"]),
+                phase_before_pause=row["phase_before_pause"],
             )
 
     # ------------------------------------------------------------------

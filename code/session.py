@@ -212,8 +212,33 @@ class Session(BaseModel):  # pylint: disable=too-many-instance-attributes
         self.current_phase = 'FINISHED'
 
     def pause(self):
-        """Pause the current heat and session (not yet implemented)."""
-        raise NotImplementedError("pause() is not yet implemented.")
+        """
+        Pause the active session and its current heat.
+
+        Works during both PREP and FLIGHT phases of the current heat.
+
+        Raises:
+            ValueError: If the session is not running or no pausable heat is active.
+        """
+        if self.current_phase != 'FLIGHT':
+            raise ValueError("Cannot pause: session is not running.")
+        if not self.current_heat or self.current_heat.status not in ('PREP', 'FLIGHT'):
+            raise ValueError("No pausable heat active.")
+        self.phase_before_pause = self.current_phase
+        self.current_heat.pause()
+        self.current_phase = 'PAUSED'
+
+    def resume(self):
+        """
+        Resume a paused session and its current heat.
+
+        Raises:
+            ValueError: If the session is not currently paused.
+        """
+        if self.current_phase != 'PAUSED':
+            raise ValueError("Cannot resume: session is not paused.")
+        self.current_heat.resume()
+        self.current_phase = self.phase_before_pause or 'FLIGHT'
 
     # ------------------------------------------------------------------
     # Pilot management

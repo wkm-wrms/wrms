@@ -922,9 +922,8 @@
                 document.getElementById('view-prep').classList.add('active');
                 document.getElementById('prepTitle').innerText = s.name;
                 loadSessionData();
-                if (s.current_phase === 'FLIGHT') {
+                if (s.current_phase === 'FLIGHT' || s.current_phase === 'PAUSED') {
                     document.getElementById('view-started').classList.add('active');
-                    isPaused = s.is_paused;
                     updateHeats();
                 }
                 searchPilots();
@@ -1001,6 +1000,10 @@
                 return;
             }
             stopTimer();
+            document.getElementById('btnPause').style.display  = 'none';
+            document.getElementById('btnResume').style.display = '';
+            const st = document.getElementById('session-status');
+            if (st) { st.innerText = 'Pauza'; st.className = 'status-badge badge-prep'; }
         }
 
         async function nextHeat() {
@@ -1035,6 +1038,10 @@
                 return;
             }
             startTimer();
+            document.getElementById('btnPause').style.display  = '';
+            document.getElementById('btnResume').style.display = 'none';
+            const st = document.getElementById('session-status');
+            if (st) { st.innerText = 'W trakcie'; st.className = 'status-badge badge-live'; }
         }
 
         // --- Zarządzanie Pilotami ---
@@ -1138,8 +1145,16 @@
                     </div>`;
                     activePilots[p.pilot_id] = p;
                 }
+                const phaseLabels = {
+                    'IDLE':     'Oczekiwanie',
+                    'FLIGHT':   'W trakcie',
+                    'PAUSED':   'Pauza',
+                    'FINISHED': 'Zakończona',
+                };
                 statusEl = document.getElementById('session-status');
-                statusEl.innerText = dataP.session.current_phase;
+                const phase = dataP.session.current_phase;
+                statusEl.innerText = phaseLabels[phase] || phase;
+                statusEl.className = 'status-badge ' + (phase === 'PAUSED' ? 'badge-prep' : phase === 'FLIGHT' ? 'badge-live' : 'badge-prep');
 
                 unassigned_pilots = dataP.session.active_pilots;
                 renderGroups(dataP.session.groups);
@@ -1181,15 +1196,14 @@
             return;
         }
 
-        async function startTimer() {
-            setInterval = setInterval(displayTimer, 100);
+        function startTimer() {
+            if (timerInt) clearInterval(timerInt);
+            timerInt = setInterval(displayTimer, 100);
             timerRunning = true;
         }
 
         function stopTimer() {
-            if (timerInt)
-                clearInterval(timerInt);
-
+            if (timerInt) clearInterval(timerInt);
             timerInt = null;
             timerRunning = false;
         }
@@ -1243,17 +1257,16 @@
                 currenHeatNumber = heat.heat_number;
             }
 
-            if (currentHeatStatus !== heat.status) {
-                if ((heat.status === 'FLIGHT') || (heat.status === 'PREP')) {
-                    if (!timerRunning) {
-                        startTimer();
-                    }
-                    timerRunning = true;
-                } else if (heat.status === 'PAUSED') {
-                    timerRunning = false;
-                }
-
+            if ((heat.status === 'FLIGHT') || (heat.status === 'PREP')) {
+                if (!timerRunning) startTimer();
+            } else if (heat.status === 'PAUSED') {
+                if (timerRunning) stopTimer();
             }
+            currentHeatStatus = heat.status;
+
+            const isPaused = heat.status === 'PAUSED';
+            document.getElementById('btnPause').style.display  = isPaused ? 'none' : '';
+            document.getElementById('btnResume').style.display = isPaused ? ''     : 'none';
             const CHANNELS = ["R1", "R3", "R6", "R7"];
             // Timer Logic
             if (heat.live_seconds_left !== null) {
