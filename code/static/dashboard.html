@@ -319,17 +319,104 @@
             cursor: pointer;
             color: #666;
         }
+
+        /* --- STARTUP AUDIO MODAL --- */
+        #startupModal {
+            display: flex;
+            position: fixed;
+            z-index: 2000;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.97);
+            align-items: center;
+            justify-content: center;
+        }
+
+        #startupModal .startup-box {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 50px 60px;
+            text-align: center;
+            border: 1px solid #333;
+            max-width: 520px;
+            width: 90%;
+        }
+
+        #startupModal h2 {
+            color: var(--accent);
+            font-size: 2rem;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            margin-bottom: 10px;
+        }
+
+        #startupModal p {
+            color: #aaa;
+            margin-bottom: 40px;
+            font-size: 1rem;
+        }
+
+        #startupModal .startup-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        #startupModal .btn-audio-yes {
+            background: var(--accent);
+            color: #000;
+            font-size: 1.1rem;
+            padding: 18px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        #startupModal .btn-audio-no {
+            background: #333;
+            color: #aaa;
+            font-size: 0.95rem;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        #startupModal .btn-audio-yes:hover { filter: brightness(110%); }
+        #startupModal .btn-audio-no:hover  { background: #444; }
     </style>
 </head>
 
 <body>
-    <!-- Audio elements dla dźwięków -->
+    <!-- Audio elements -->
     <audio id="startSound" preload="auto">
         <source src="/static/sounds/start.mp3" type="audio/mpeg">
     </audio>
     <audio id="endSound" preload="auto">
         <source src="/static/sounds/end.mp3" type="audio/mpeg">
     </audio>
+    <!-- Silent audio used solely to unlock the browser autoplay policy -->
+    <audio id="silentSound" preload="auto">
+        <source src="/static/sounds/silent.mp3" type="audio/mpeg">
+    </audio>
+
+    <!-- Startup modal — must be dismissed before dashboard activates -->
+    <div id="startupModal">
+        <div class="startup-box">
+            <h2>WKM Race</h2>
+            <p>Wybierz tryb dźwięku dla tej sesji</p>
+            <div class="startup-buttons">
+                <button class="btn-audio-yes" onclick="startDashboard(true)">
+                    🔊 Z komunikatami dźwiękowymi
+                </button>
+                <button class="btn-audio-no" onclick="startDashboard(false)">
+                    Bez dźwięku
+                </button>
+            </div>
+        </div>
+    </div>
 
     <div id="logo"><img src="/static/logo.png" alt="Logo" /></div>
     <div class="top-section">
@@ -410,6 +497,26 @@
 
     <script>
         const CHANNELS = ["R1", "R3", "R6", "R7"];
+
+        let audioEnabled = false;
+
+        function startDashboard(withAudio) {
+            audioEnabled = withAudio;
+
+            if (withAudio) {
+                // Play silent sound to unlock browser autoplay policy with this user gesture
+                const silent = document.getElementById('silentSound');
+                if (silent) silent.play().catch(() => {});
+            }
+
+            document.getElementById('startupModal').style.display = 'none';
+
+            // Begin polling now that user has interacted
+            setInterval(updateDashboard, 5000);
+            setInterval(displayTimer, 100);
+            updateDashboard();
+            displayTimer();
+        }
 
         async function updateDashboard() {
             try {
@@ -638,30 +745,26 @@
             closeModal('pilotModal');
         }
 
-        // Odtwarzanie dźwięków
+        // Sound playback — guarded by audioEnabled set in startDashboard()
         function playStartSound() {
+            if (!audioEnabled) return;
             const audio = document.getElementById('startSound');
             if (audio) {
                 audio.currentTime = 0;
-                audio.play().catch(err => console.log('Nie można odtworzyć dźwięku startu:', err));
+                audio.play().catch(err => console.log('Cannot play start sound:', err));
             }
         }
 
         function playEndSound() {
+            if (!audioEnabled) return;
             const audio = document.getElementById('endSound');
             if (audio) {
                 audio.currentTime = 0;
-                audio.play().catch(err => console.log('Nie można odtworzyć dźwięku końca:', err));
+                audio.play().catch(err => console.log('Cannot play end sound:', err));
             }
         }
 
-
-
-        // Polling co 1 sekundę
-        setInterval(updateDashboard, 5000);
-        setInterval(displayTimer, 100);
-        updateDashboard(); // Pierwsze wywołanie
-        displayTimer();
+        // Polling is started by startDashboard() after user interaction
     </script>
 </body>
 

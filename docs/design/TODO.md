@@ -87,7 +87,7 @@ Na podstawie analizy plików `requirements.md` oraz `use cases.md` względem akt
 - **Pause/resume**: Implement the 501-returning pause/resume endpoints (session_api.py)
 - **Automatic rebalance after pilot removal**: Currently requires manual `/rebalance` call
 - **5th pilot Low Band rule**: Full Low Band channel (LB) support in matchmaking
-- **Fix audio autoplay in browser**: Browsers block `audio.play()` until the user has interacted with the page (autoplay policy). A one-time interaction (e.g. a "Start Audio" button that plays a silent sound) is enough to unlock audio for the entire session — no repeat interaction needed every 10 minutes. The unlock only resets if the page is reloaded. Implement this button on the dashboard before the session goes live.
+- ~~**Fix audio autoplay in browser**~~ *(done 2026-03-28 — startup modal with "z komunikatami" / "bez dźwięku" choice; silent.mp3 unlocks browser autoplay policy on first gesture)*
 - **`is_active` flag semantics**: `session.stop()` sets `current_phase='FINISHED'` but leaves `is_active=True`; consider aligning or documenting
 
 ---
