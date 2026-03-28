@@ -1,7 +1,6 @@
 import sqlite3
 import json
 import os
-import traceback
 
 from datetime import datetime
 import hashlib
@@ -531,8 +530,6 @@ class RaceDatabase:
             pilot_params = (vtx_channel, v.vtx,
                             flight_started_at, finished_at, heat.flight_time,
                             heat.status, heat.session_id, heat.heat_number, pilot_id, )
-#            print(
-#                f"Updating or inserting pilot into heats: {pilot_params} with sql: {query_pilots}")
             with self._get_conn() as conn:
                 conn.execute(query_pilots, pilot_params)
                 conn.commit()

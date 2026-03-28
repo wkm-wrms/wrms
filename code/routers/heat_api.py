@@ -3,7 +3,6 @@ from typing import Optional, Any, Dict
 from fastapi import APIRouter, Depends
 
 from pydantic import BaseModel
-import json
 
 from session import get_session
 from heat import Heat

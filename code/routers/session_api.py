@@ -1,6 +1,5 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-import json
 
 from database import get_db
 from session import Session, get_session, set_session
@@ -23,7 +22,6 @@ class SessionStart (BaseModel):
 
 @router.post("")
 async def create_session(data: SessionStart):
-    print(f"Creating new session: {data}")
     if not data.name or len(data.name.strip()) == 0:
         raise HTTPException(
             status_code=400, detail="Nazwa sesji nie może być pusta.")
@@ -38,7 +36,6 @@ async def create_session(data: SessionStart):
         name=data.name, flight_duration_sec=data.flight_duration_sec, prep_duration_sec=data.prep_duration_sec)
     db.create_session(session)
     set_session(session)
-    print("sukces?")
     return {"status": "ok", "session": session, "get_session": get_session()}
 
 
@@ -106,73 +103,39 @@ async def stop_session():
 
 @router.post("/pause")
 async def pause_timer():
-    session = get_session()
-    if not session.is_session_active:
-        raise HTTPException(status_code=400, detail="Brak aktywnej sesji.")
-    if session.current_phase == "PAUSED":
-        return {"status": "ok", "message": "Sesja już jest w pauzie."}
-
-    session.pause()
-    db.save_session_data(session)
-    db.create_or_update_heat(session.current_heat, session.active_pilots)
-    db.create_or_update_heat(session.next_heat, session.active_pilots)
-    return {"status": "ok", "message": "Sesja wstrzymana."}
-    if state.current_phase in ("PREP", "FLIGHT"):
-        state.phase_before_pause = state.current_phase
-    else:
-        state.phase_before_pause = "PREP"
-
-    state.timer_running = False
-    state.current_phase = "PAUSED"
-    await manager.broadcast({"type": "session_paused"})
-    return {"status": "ok", "message": "Sesja zapauzowana."}
+    raise HTTPException(
+        status_code=501, detail="Pauza nie jest jeszcze zaimplementowana.")
 
 
-@router.post("/api/cycle/resume")
+@router.post("/resume")
 async def resume_timer():
-    if not state.is_session_active:
-        raise HTTPException(status_code=400, detail="Brak aktywnej sesji.")
-    if state.current_phase != "PAUSED":
-        return {"status": "ok", "message": "Sesja nie jest w pauzie."}
-    if len(state.groups) == 0:
-        raise HTTPException(status_code=400, detail="Brak grup do wznowienia.")
-
-    state.current_phase = state.phase_before_pause if state.phase_before_pause in (
-        "PREP", "FLIGHT") else "PREP"
-    state.timer_running = True
-    await manager.broadcast({"type": "session_resumed"})
-    db.save_session_data(session)
-    db.create_or_update_heat(session.current_heat, session.active_pilots)
-    db.create_or_update_heat(session.next_heat, session.active_pilots)
-
-    return {"status": "ok", "message": "Sesja wznowiona."}
+    raise HTTPException(
+        status_code=501, detail="Wznowienie nie jest jeszcze zaimplementowane.")
 
 
-@router.post("/api/cycle/skip")
-async def skip_phase():
-    if not state.is_session_active:
-        raise HTTPException(status_code=400, detail="Brak aktywnej sesji.")
-    if state.current_phase not in ("PREP", "FLIGHT"):
+@router.post("/skip_heat")
+async def skip_heat():
+    session = get_session()
+    if session is None or not session.is_session_active():
         raise HTTPException(
-            status_code=400, detail="Nie można pominąć obecną fazę. Sesja musi być w PREP lub FLIGHT.")
-    if len(state.groups) == 0:
-        raise HTTPException(status_code=400, detail="Brak grup.")
+            status_code=400, detail="Brak aktywnej sesji.")
 
-    if state.current_phase == "PREP":
-        state.current_phase = "FLIGHT"
-        message = "Pominięto przygotowanie, przechodzę do przelotu."
-    elif state.current_phase == "FLIGHT":
-        state.current_group_index = (
-            state.current_group_index + 1) % len(state.groups)
-        state.current_phase = "PREP"
-        message = "Pominięto przelot, przechodzę do następnej grupy."
+    try:
+        session.skip_current_heat()
+        # Zapisujemy stan sesji i biegów po rotacji
+        db.save_session_data(session)
+        db.create_or_update_heat(session.current_heat, session.active_pilots)
+        db.create_or_update_heat(session.next_heat, session.active_pilots)
 
-    await manager.broadcast({"type": "phase_skipped"})
-    db.save_session_data(session)
-    db.create_or_update_heat(session.current_heat, session.active_pilots)
-    db.create_or_update_heat(session.next_heat, session.active_pilots)
+        # Jeśli rotacja wrzuciła coś do archiwum, zapisujemy to w bazie
+        while session._archive_heats:
+            db.create_or_update_heat(
+                session._archive_heats.pop(), session.active_pilots)
 
-    return {"status": "ok", "message": message}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return {"status": "ok", "message": "Bieg został pominięty, rozpoczynam przygotowania do kolejnego."}
 
 
 @router.get("/all")

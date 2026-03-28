@@ -51,6 +51,7 @@ class Session(BaseModel):
     next_group_index: Optional[int] = None
     current_phase: str = "IDLE"  # IDLE, PREP, FLIGHT, PAUSED
     phase_before_pause: Optional[str] = None
+    timer_running: bool = False
     _dirty_list: dict[str, bool] = {}
     _archive_heats: list[Heat] = []
 
@@ -84,16 +85,12 @@ class Session(BaseModel):
         self._dirty_list[key] = False
 
     def loop(self):
-        print(f"session status: {self.current_phase}")
-        if self.get_current_phase() != "FLIGHT":
+        if self.current_phase != "FLIGHT":
             return False
         if self.current_heat.get_remaining_seconds() <= 0:
-            print("Cos musimy zrobic, skonczyl sie czas")
             if self.current_heat.get_status() == "PREP":
-                print(f"wywoluje start_flight")
                 self.current_heat.start_flight()
             else:
-
                 self.rotate_heats()
             return True
         return False
@@ -105,8 +102,6 @@ class Session(BaseModel):
         if len(self.active_pilots) == 0:
             raise ValueError(
                 "Brak pilotów. Dodaj co najmniej jednego pilota przed startem sesji.")
-        print(
-            f"Starting session group={self.groups[0]}, heat_number=1, session_id={self.session_id}")
         self.current_heat_number = 1
         self.current_group_index = 0
         self.current_group = self.groups[0]
@@ -141,6 +136,10 @@ class Session(BaseModel):
     def stop(self):
         self.current_phase = 'FINISHED'
 
+    def pause(self):
+        """Wstrzymuje aktualny bieg i całą sesję"""
+        raise NotImplementedError(
+            "Metoda pause nie jest jeszcze zaimplementowana.")
 
 #
 #
@@ -178,7 +177,7 @@ class Session(BaseModel):
             self.current_heat_number = 1
         if not self.next_heat:
             self.next_group_index = (
-                self.self.current_group_index+1) % len(self.groups)
+                self.current_group_index+1) % len(self.groups)
             self.next_heat_number = self.current_heat_number + 1
             self.next_group = self.groups[self.next_group_index]
             self.next_heat = self.create_heat(group=self.next_group,
@@ -187,6 +186,12 @@ class Session(BaseModel):
         if self.current_heat:
             self.current_heat.finish()
             self.archive_heat(self.current_heat)
+
+        if not self.next_heat:
+            # Awaryjne generowanie jeśli nie było zaplanowanego
+            idx = (self.current_group_index + 1) % len(self.groups)
+            self.next_heat = self.create_heat(
+                self.groups[idx], self.current_heat_number + 1)
 
         self.current_heat = self.next_heat
         self.current_heat_number = self.next_heat_number
@@ -208,6 +213,15 @@ class Session(BaseModel):
         self._archive_heats.append(heat)
         self._dirty_list["archive_heats"] = True
 
+    def skip_current_heat(self):
+        """
+        Manualnie przeskakuje do następnego biegu.
+        Kończy obecny bieg i wymusza rotację na następny w kolejce.
+        """
+        if not self.is_active or not self.current_heat:
+            raise ValueError("Brak aktywnego biegu do pominięcia.")
+        self.rotate_heats()
+
     def get_archive_heat(self):
         return self._archive_heats.pop()
 
@@ -222,85 +236,15 @@ class Session(BaseModel):
             prep_time=self.prep_duration_sec,
             flight_time=self.flight_duration_sec)
 
-    def get_name(self):
-        """ Returns the display name of the session.        """
-        return self.name
-
-    def get_flight_duration(self):
-        """ Returns the flight duration for the session in seconds.        """
-        return self.flight_duration_sec
-
-    def get_prep_duration(self):
-        """ Returns the preparation duration for the session in seconds.        """
-        return self.prep_duration_sec
-
-    def is_session_active(self):
-        """ Returns whether the session is currently active.        """
-        return self.is_active
-
-    def get_active_pilots(self):
-        """ Returns the list of active pilots participating in the session.        """
-        return self.active_pilots
-
-    def get_current_heat(self):
-        """ Returns the current heat being contested in the session.        """
-        return self.current_heat
-
-    def get_next_heat(self):
-        """ Returns the next heat to be contested in the session.        """
-        return self.next_heat
-
-    def get_groups(self):
-        """ Returns the list of pilot groups for the session.        """
-        return self.groups
-
-    def set_groups(self, groups: list[Group]):
-        """ Sets the list of pilot groups for the session and triggers auto-saving if enabled.
-    """
-        self.groups = groups
-
-    def get_current_group(self):
-        """ Returns the group currently competing in the session.        """
-        return self.current_group
-
-    def set_current_group(self, group: Group):
-        """ Sets the group currently competing in the session and triggers auto-saving if enabled.
-    """
-        self.current_group = group
-
-    def is_timer_running(self):
-        """ Returns whether the timer is currently running for the session.        """
-        return self.timer_running
-
-    def set_timer_running(self, running: bool):
-        """ Sets the timer running status for the session and triggers auto-saving if enabled. """
-        self.timer_running = running
-
-    def get_current_phase(self):
-        """ Returns the current phase of the session (IDLE, PREP, FLIGHT, PAUSED).        """
-        return self.current_phase
-
-    def set_current_phase(self, phase: str):
-        """ Sets the current phase of the session and triggers auto-saving if enabled.        """
-        self.current_phase = phase
-
-    def get_phase_before_pause(self):
-        """ Returns the phase that was active before the session was paused.        """
-        return self.phase_before_pause
-
-    def set_phase_before_pause(self, phase: str):
-        """ Sets the phase that was active before the session was paused and triggers auto-saving if enabled.        """
-        self.phase_before_pause = phase
-
     def move_pilot(self, pilot_id: int, from_channel: str, from_group: int, to_channel: str, to_group: int):
 
-        # Sepcyficzna obsluga paddocka
+        # Specyficzna obsluga paddocka (unassigned pilots)
         if from_group is not None and from_group < 0:
             from_group = None
-        if from_group is not None and to_group < 0:
+        if to_group is not None and to_group < 0:
             to_group = None
 
-        # javascript uzywa group_sequence. Zmniejszmy o 1
+        # UI uzywa group_sequence (1-based). Zmniejszmy o 1 dla indeksowania listy
         if from_group is not None:
             from_group -= 1
         if to_group is not None:
@@ -309,29 +253,41 @@ class Session(BaseModel):
         if pilot_id not in self.active_pilots:
             return {"status": "error", "message": "Pilot nie jest aktywny"}
 
-        if to_channel is not None and to_channel not in ALLOWED_CHANNELS:
-            return {"status": "error", "message": "Niepoprawny kanał"}
-        if from_channel is not None and from_channel not in ALLOWED_CHANNELS:
-            return {"status": "error", "message": "Niepoprawny kanał"}
+        # Walidacja istnienia grup i zakresów
+        if (from_group is not None or to_group is not None) and not self.groups:
+            return {"status": "error", "message": "Brak zdefiniowanych grup"}
 
-        if from_group is not None and from_group >= len(self.groups):
-            return {"status": "error", "message": "Niepoprawna grupa"}
-        if to_group is not None and to_group >= len(self.groups):
-            return {"status": "error", "message": "Niepoprawna grupa"}
+        if from_group is not None and (from_group < 0 or from_group >= len(self.groups)):
+            return {"status": "error", "message": "Niepoprawna grupa źródłowa"}
+        if to_group is not None and (to_group < 0 or to_group >= len(self.groups)):
+            return {"status": "error", "message": "Niepoprawna grupa docelowa"}
+
+        # Walidacja kanałów
+        for ch in [from_channel, to_channel]:
+            if ch is not None and ch not in ALLOWED_CHANNELS:
+                return {"status": "error", "message": f"Niepoprawny kanał: {ch}"}
 
         if from_channel is not None and from_group is not None:
-            # Sprawdzamy czy na tej pozycji znajduje sie ten pilot
             group = self.groups[from_group]
-            if from_channel not in group.channels.keys():
-                return {"status": "error", "message": "Pilot nie jest w grupie"}
-            if group.channels[from_channel].pilot_id != pilot_id:
-                return {"status": "error", "message": "Pilot nie jest w tej pozycji"}
-        pilot: ActivePilot = self.active_pilots[pilot_id]
-        print(
-            f"przenosze z {from_group}/{from_channel} do {to_group}/{to_channel} pilota {pilot}")
-        if from_group is not None:
-            del self.groups[from_group].channels[from_channel]
+            if from_channel not in group.channels or group.channels[from_channel].pilot_id != pilot_id:
+                return {"status": "error", "message": "Pilot nie znajduje się na wskazanej pozycji źródłowej"}
+
+        # Sprawdzenie kolizji w miejscu docelowym
         if to_group is not None:
+            if to_channel is None:
+                return {"status": "error", "message": "Należy wskazać kanał dla docelowej grupy"}
+
+        pilot: ActivePilot = self.active_pilots[pilot_id]
+
+        # Logika przenoszenia:
+
+        # 1. Usuwamy pilota z poprzedniego miejsca (jeśli je posiadał)
+        if from_group is not None and from_channel in self.groups[from_group].channels:
+            del self.groups[from_group].channels[from_channel]
+
+        # 2. Wstawiamy pilota w nowe miejsce.
+        # Jeśli to_channel był zajęty, poprzedni pilot zostaje nadpisany i automatycznie "spada" do paddocku.
+        if to_group is not None and to_channel is not None:
             self.groups[to_group].channels[to_channel] = pilot
 
         return {"status": "ok", "groups": self.groups}

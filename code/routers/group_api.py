@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
 from typing import Optional
+from pydantic import BaseModel
+
+from fastapi import APIRouter, HTTPException
 
 from session import get_session
 from database import RaceDatabase, get_db
@@ -19,23 +20,7 @@ async def get_session_groups():
     if session is None:
         raise HTTPException(
             status_code=400, detail="Brak stworzonej sesji, najpierw okresl jej parametry")
-    groups = session.groups
-    paddock = []
-#    for g in session.groups:
-#        groups.append(g)
-#        print(f"{g}")
-    # skalkulu paddock, czyli pilotow bez przypisania
-#    pilots_by_id = {}
-#    for pilot in session.active_pilots:
-#        pilots_by_id[pilot.pilot.id] = pilot
-#    for group in session.groups:
-#        print(
-#            f"groups: {str(type(session.groups))}, group: {str(type(group))}")
-#        for pilot in group.pilots:
-#            del pilots_by_id[pilot.id]
-#    paddock: list[Pilot] = [pilots_by_id[k] for k in pilots_by_id]
-
-    return {"status": "ok", "groups": session.groups, "paddock": paddock}
+    return {"status": "ok", "groups": session.groups}
 
 
 @router.post("/rebalance")
@@ -60,6 +45,9 @@ class PilotMove(BaseModel):
 @router.post("/move_pilot")
 async def post_move_pilot(move: PilotMove):
     session = get_session()
+    if session is None:
+        raise HTTPException(
+            status_code=400, detail="Brak stworzonej sesji")
     # Poszukajmy czy pilot jest
     res = session.move_pilot(move.pilot_id, move.from_channel, move.from_group,
                              move.to_channel, move.to_group)
@@ -69,7 +57,7 @@ async def post_move_pilot(move: PilotMove):
 
 
 @router.post("/new")
-async def post_new_grop():
+async def post_new_group():
     session = get_session()
     # Poszukajmy czy pilot jest
 
@@ -84,7 +72,7 @@ class GroupDelete(BaseModel):
 
 
 @router.post("/delete")
-async def post_delete_grop(remove: GroupDelete):
+async def post_delete_group(remove: GroupDelete):
     session = get_session()
     # Poszukajmy czy pilot jest
 

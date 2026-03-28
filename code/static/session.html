@@ -597,7 +597,7 @@
                 const response = await fetch(url, options);
                 const data = await response.json();
                 if (data.status !== "ok") throw new Error(data.message || "Błąd API: " + data.message);
-                id = data.id;
+                const id = data.id;
                 return data;
             } catch (err) {
                 alert("Błąd: " + err.message);
@@ -705,6 +705,13 @@
             const res = await fetch('/api/session/pause', { method: 'POST' });
             const data = await res.json();
             stopTimer();
+        }
+
+        async function nextHeat() {
+            if (confirm("Czy na pewno chcesz pominąć obecną fazę i przejść dalej?")) {
+                await fetch('/api/session/skip_heat', { method: 'POST' });
+                updateUI();
+            }
         }
 
         async function resumeSession() {

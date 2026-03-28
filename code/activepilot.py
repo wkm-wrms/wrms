@@ -9,7 +9,6 @@ class ActivePilot (BaseModel):
     is_digital: bool
 
     def __init__(self,  pilot: Pilot, vtx: str,  is_digital: bool = None):
-        print
         if is_digital is None:
             is_digital = (vtx != "Analog")
         super().__init__(pilot_id=pilot.get_pilot_id(),

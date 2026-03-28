@@ -42,7 +42,8 @@ class Heat(BaseModel):
                 raise ValueError("Podaj albo group_id albo group")
         if channels is None:
             if group:
-                channels = group.channels
+                # Wykonujemy kopię słownika, aby Heat był niezmienny (snapshot)
+                channels = group.channels.copy()
 
         super().__init__(
             session_id=session_id,
