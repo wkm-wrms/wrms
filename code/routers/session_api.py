@@ -1,3 +1,6 @@
+"""
+API module for managing training sessions.
+"""
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -5,16 +8,15 @@ from database import get_db
 from session import Session, get_session, set_session
 from pilot import Pilot
 
-
 router = APIRouter(
     prefix="/session",
     tags=["session"]
 )
-
 db = get_db()
 
 
-class SessionStart (BaseModel):
+class SessionStart(BaseModel):
+    """Input data model for creating a new session (Req 2.2)."""
     name: str
     flight_duration_sec: int
     prep_duration_sec: int
@@ -22,112 +24,124 @@ class SessionStart (BaseModel):
 
 @router.post("")
 async def create_session(data: SessionStart):
+    """
+    Creates a new session and persists it in the database.
+    """
     if not data.name or len(data.name.strip()) == 0:
         raise HTTPException(
-            status_code=400, detail="Nazwa sesji nie może być pusta.")
+            status_code=400, detail="Session name cannot be empty.")
     if data.flight_duration_sec <= 0:
         raise HTTPException(
-            status_code=400, detail="Czas przelotu musi być większy niż 0.")
+            status_code=400, detail="Flight duration must be greater than 0.")
     if data.prep_duration_sec <= 0:
         raise HTTPException(
-            status_code=400, detail="Czas przygotowania musi być większy niż 0.")
+            status_code=400, detail="Preparation time must be greater than 0.")
 
     session = Session(
         name=data.name, flight_duration_sec=data.flight_duration_sec, prep_duration_sec=data.prep_duration_sec)
     db.create_session(session)
     set_session(session)
-    return {"status": "ok", "session": session, "get_session": get_session()}
+    return {"status": "ok", "session": session}
 
 
 @router.get("")
 async def get_active_session():
+    """Returns data for the currently active session."""
     session = get_session()
     if session is None:
         raise HTTPException(
-            status_code=400, detail="Brak stworzonej sesji, najpierw okresl jej parametry")
+            status_code=400, detail="No session found. Please define session parameters first.")
     return {"status": "ok", "session": session}
 
 
 @router.get("/groups")
-async def get_session_groups():
+async def get_session_groups_list():
+    """Returns the list of groups in the active session roster."""
     session = get_session()
     if session is None:
         raise HTTPException(
-            status_code=400, detail="Brak stworzonej sesji, najpierw okresl jej parametry")
+            status_code=400, detail="No active session found.")
     return {"status": "ok", "groups": session.groups}
 
 
 @router.get("/{session_id}")
 async def get_session_by_id(session_id: str):
+    """Retrieves a historical session from the database by ID."""
     session = db.get_session_by_id(session_id)
     if session is None:
         raise HTTPException(
-            status_code=400, detail="Nie odnaleziona sesja")
+            status_code=400, detail="Session not found.")
     return {"status": "ok", "session": session}
 
 
 @router.post("/start")
 async def start_session():
+    """Starts the session timer and activates the first heat (Req: Cycle Start)."""
     session = get_session()
     res = None
     if session is None:
-        return {"status": "error", "message": "Brak stworzonej sesji, najpierw okresl jej parametry"}
+        return {"status": "error", "message": "No session found. Please define parameters first."}
     if session.is_session_active():
-        return {"status": "error", "message": "Sesja już trwa."}
+        return {"status": "error", "message": "Session is already active."}
     if len(session.active_pilots) == 0:
-        return {"status": "error", "message": "Brak pilotów. Dodaj co najmniej jednego pilota przed startem sesji."}
+        return {"status": "error", "message": "No pilots added. Add at least one pilot before starting."}
     if len(session.groups) == 0:
-        return {"status": "error", "message": "Brak grup. Stwórz grupy przed startem sesji."}
+        return {"status": "error", "message": "No groups created. Create groups before starting."}
     try:
         res = session.start()
     except ValueError as e:
-        return {"status": "error", "message": f"Błąd startu sesji: {e}"}
+        return {"status": "error", "message": f"Session start error: {e}"}
+
     db.create_or_update_heat(session.current_heat, session.active_pilots)
     db.create_or_update_heat(session.next_heat, session.active_pilots)
     db.save_session_data(session)
-
-    return {"status": "ok", "message": f"Sesja {session.name} rozpoczęta.", "result": res}
+    return {"status": "ok", "message": f"Session {session.name} started.", "result": res}
 
 
 @router.post("/stop")
 async def stop_session():
+    """Stops and closes the active session (Req: End Session)."""
     session = get_session()
+    if session is None:
+        return {"status": "error", "message": "No active session found."}
     session.stop()
     db.save_session_data(session)
     db.create_or_update_heat(session.current_heat, session.active_pilots)
     db.create_or_update_heat(session.next_heat, session.active_pilots)
-    current_session = None
     set_session(None)
-    return {"status": "ok", "message": "Sesja zakończona."}
+    return {"status": "ok", "message": "Session finished."}
 
 
 @router.post("/pause")
 async def pause_timer():
+    """Pauses the timer (TBD)."""
     raise HTTPException(
-        status_code=501, detail="Pauza nie jest jeszcze zaimplementowana.")
+        status_code=501, detail="Pause functionality is not yet implemented.")
 
 
 @router.post("/resume")
 async def resume_timer():
+    """Resumes the timer (TBD)."""
     raise HTTPException(
-        status_code=501, detail="Wznowienie nie jest jeszcze zaimplementowane.")
+        status_code=501, detail="Resume functionality is not yet implemented.")
 
 
 @router.post("/skip_heat")
 async def skip_heat():
+    """Skips the current heat and shifts to the next group in rotation."""
     session = get_session()
     if session is None or not session.is_session_active():
         raise HTTPException(
-            status_code=400, detail="Brak aktywnej sesji.")
+            status_code=400, detail="No active session found.")
 
     try:
         session.skip_current_heat()
-        # Zapisujemy stan sesji i biegów po rotacji
+        # Persist session and heat state after rotation
         db.save_session_data(session)
         db.create_or_update_heat(session.current_heat, session.active_pilots)
         db.create_or_update_heat(session.next_heat, session.active_pilots)
 
-        # Jeśli rotacja wrzuciła coś do archiwum, zapisujemy to w bazie
+        # If rotation archived any heats, persist them to the database
         while session._archive_heats:
             db.create_or_update_heat(
                 session._archive_heats.pop(), session.active_pilots)
@@ -135,23 +149,28 @@ async def skip_heat():
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    return {"status": "ok", "message": "Bieg został pominięty, rozpoczynam przygotowania do kolejnego."}
+    return {"status": "ok", "message": "Heat skipped, preparing next group."}
 
 
 @router.get("/all")
 async def get_all_sessions():
+    """Retrieves a list of all historical sessions from the database."""
     sessions = db.get_all_sessions()
     return {"status": "ok", "sessions": sessions}
 
 
 class PilotAdd(BaseModel):
+    """Schema for adding a pilot to the session."""
     pilot_id: int
     vtx: str
 
 
 @router.post("/add_pilot")
 async def session_add_pilot(pilot_add: PilotAdd):
+    """Adds a pilot to the active session and triggers matchmaking (Req 3.2)."""
     session = get_session()
+    if session is None:
+        raise HTTPException(status_code=400, detail="No active session.")
     pilot: Pilot = db.get_pilot_by_id(pilot_add.pilot_id)
     try:
         session.add_pilot(pilot, pilot_add.vtx)
@@ -159,17 +178,21 @@ async def session_add_pilot(pilot_add: PilotAdd):
                              pilot_add.pilot_id, pilot_add.vtx)
         db.update_groups(session)
     except ValueError:
-        return {"status": "error", "message": "Pilot juz jest aktywny"}
+        return {"status": "error", "message": "Pilot is already active."}
     return {"status": "ok"}
 
 
 class PilotRemove(BaseModel):
+    """Schema for removing a pilot from the session."""
     pilot_id: int
 
 
 @router.post("/remove_pilot")
 async def session_remove_pilot(pilot_remove: PilotRemove):
+    """Removes a pilot from the session and triggers matchmaking rebalance."""
     session = get_session()
+    if session is None:
+        raise HTTPException(status_code=400, detail="No active session.")
     session.remove_pilot(pilot_remove.pilot_id)
     db.session_remove_pilot(session.session_id, pilot_remove.pilot_id)
     db.save_session_data(session)

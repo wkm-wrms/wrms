@@ -1,3 +1,7 @@
+"""
+Heat API Router Module.
+Provides real-time information about the current and next heats for the dashboard.
+"""
 from datetime import datetime
 from typing import Optional, Any, Dict
 from fastapi import APIRouter, Depends
@@ -13,20 +17,28 @@ router = APIRouter(prefix="/heat", tags=["heat"])
 
 
 class ApiResponse(BaseModel):
+    """Standard API response wrapper for heat data."""
     status: str
     message: Optional[str] = None
     heat: Optional[Dict[str, Any]] = None
     next_heat: Optional[Dict[str, Any]] = None
 
-# --- Funkcja Pomocnicza do Procesowania Danych ---
-
 
 def process_heat_data(heat: Heat) -> Dict[str, Any]:
-    """Konwertuje wiersz z bazy na słownik z wyliczonym czasem live."""
+    """
+    Converts a Heat object into a dictionary for API consumption.
+    Calculates 'live' remaining seconds based on server time (Req 3.3).
+
+    Args:
+        heat (Heat): The Heat instance to process.
+
+    Returns:
+        Dict[str, Any]: Formatted heat data with status, numbers, and channels.
+    """
     if not heat:
         return {}
 
-    # Logika czasu LIVE
+    # LIVE Time Logic: Ensure dashboard stays in sync with server timer
     status = heat.get_status()
     seconds_left = heat.get_remaining_seconds()
 
@@ -42,19 +54,17 @@ def process_heat_data(heat: Heat) -> Dict[str, Any]:
 
     }
 
-# --- Endpointy ---
-
 
 @router.get("", response_model=ApiResponse)
 async def get_current_heat(session=Depends(get_session)):
-    """Pobiera aktualny i najbliższy heat."""
+    """Retrieves the current active heat and the upcoming heat (Req 3.3)."""
     if not session:
-        return ApiResponse(status="error", message="Brak aktywnej sesji")
+        return ApiResponse(status="error", message="No active session found.")
 
     if not session.current_heat_number:
-        return ApiResponse(status="error", message="Brak przypisanego biegu w sesji")
+        return ApiResponse(status="error", message="No heat currently assigned in the session.")
     heat = session.current_heat
     if not heat:
-        return ApiResponse(status="error", message=f"Nie znaleziono biegu nr {session.current_heat_number}")
+        return ApiResponse(status="error", message=f"Heat number {session.current_heat_number} not found.")
 
     return ApiResponse(status="ok", heat=process_heat_data(heat), next_heat=process_heat_data(session.next_heat))

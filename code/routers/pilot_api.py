@@ -21,46 +21,54 @@ router = APIRouter(
 
 db = get_db()
 
-# Definiujemy strukturę przychodzących danych
-
 
 class PilotCreate(BaseModel):
+    """Schema for creating a new pilot profile (Req 2.1)."""
     name: str
     country: str = ""
 
 
 @router.get("/")
 async def get_all_pilots():
-    """ Pobierz wszystkich pilotów z bazy danych. Jeśli baza jest pusta, zwróć pustą listę."""
+    """ 
+    Fetch all pilots from the database. 
+    Returns an empty list if no pilots are found.
+    """
     pilots = db.search_pilots("")
     return {"status": "ok", "pilots": pilots}
 
 
 @router.post("/")
 async def create_pilot(data: PilotCreate):
-    """ Dodaj nowego pilota do bazy danych. Jeśli pilot o tej samej nazwie już istnieje lub nazwa jest pusta, zwróć błąd."""
+    """ 
+    Add a new pilot to the database. 
+    Returns an error if the pilot already exists or the name is empty.
+    """
     try:
         pilot_id = db.add_pilot(data.name, data.country)
     except ValueError:
-        return {"status": "error", "message": "Pilot juz istnieje lub nazwa jest pusta."}
+        return {"status": "error", "message": "Pilot already exists or name is empty."}
     pilot = db.get_pilot_by_id(pilot_id)
     return {"id": pilot_id, "status": "ok", "pilot": pilot}
 
 
-#    await manager.broadcast({"type": "groups_updated", "current_index": state.current_group_index})
-
-
 @router.get("/{pilot_id}")
 async def get_pilot(pilot_id: int):
-    """ """
+    """ 
+    Fetch a specific pilot by ID.
+    Raises 404 if the pilot is not found.
+    """
     pilot = db.get_pilot_by_id(pilot_id)
     if not pilot:
-        raise HTTPException(status_code=404, detail="Pilot nie istnieje")
+        raise HTTPException(status_code=404, detail="Pilot does not exist.")
     return {"status": "ok", "pilot": pilot}
 
 
 @router.get("/search/{query}")
 async def search_pilots(query: str):
-    """ Wyszukaj pilotów na podstawie zapytania. Zwróć listę pilotów, których nazwa zawiera podany ciąg znaków (niezależnie od wielkości liter). Jeśli nie znaleziono żadnych pilotów, zwróć pustą listę."""
+    """ 
+    Search for pilots by name. 
+    Returns a list of pilots whose name contains the query string (case-insensitive).
+    """
     pilots = db.search_pilots(query)
     return {"status": "ok", "pilots": pilots}
