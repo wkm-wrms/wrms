@@ -5,8 +5,9 @@ Handles group management, matchmaking (rebalancing), and manual pilot movement.
 from typing import Optional
 from pydantic import BaseModel
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from auth import require_admin
 from session import get_session
 from database import RaceDatabase, get_db
 
@@ -28,7 +29,7 @@ async def get_session_groups():
 
 
 @router.post("/rebalance")
-async def get_rebalance_groups():
+async def get_rebalance_groups(_: str = Depends(require_admin)):
     """
     Triggers the matchmaking algorithm (Req 3.1).
     Sorts pilots based on vision system and risk factor to optimize group composition.
@@ -51,7 +52,7 @@ class PilotMove(BaseModel):
 
 
 @router.post("/move_pilot")
-async def post_move_pilot(move: PilotMove):
+async def post_move_pilot(move: PilotMove, _: str = Depends(require_admin)):
     """
     Manually overrides pilot placement (Req 3.2).
     Allows administrators to move pilots regardless of the matchmaking algorithm.
@@ -68,7 +69,7 @@ async def post_move_pilot(move: PilotMove):
 
 
 @router.post("/new")
-async def post_new_group():
+async def post_new_group(_: str = Depends(require_admin)):
     """Adds a new empty group to the session roster."""
     session = get_session()
     if session is None:
@@ -85,7 +86,7 @@ class GroupDelete(BaseModel):
 
 
 @router.post("/delete")
-async def post_delete_group(remove: GroupDelete):
+async def post_delete_group(remove: GroupDelete, _: str = Depends(require_admin)):
     """Removes a group and returns its pilots to the unassigned pool."""
     session = get_session()
     if session is None:

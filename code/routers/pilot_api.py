@@ -10,8 +10,9 @@ Endpoints:
 The module uses a database connection to perform CRUD operations on pilot records.
 """
 from pydantic import BaseModel
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from auth import require_admin
 from database import get_db
 
 router = APIRouter(
@@ -39,7 +40,7 @@ async def get_all_pilots():
 
 
 @router.post("/")
-async def create_pilot(data: PilotCreate):
+async def create_pilot(data: PilotCreate, _: str = Depends(require_admin)):
     """
     Add a new pilot to the database.
     Returns an error if the pilot already exists or the name is empty.

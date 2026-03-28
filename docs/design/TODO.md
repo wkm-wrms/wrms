@@ -32,7 +32,7 @@ Na podstawie analizy plików `requirements.md` oraz `use cases.md` względem akt
 - [ ] **Dashboard**: Wyświetlanie kodu QR z dynamicznym linkiem.
 - [ ] **Dashboard**: Oznaczenie wizualne pilotów o statusie "Zapauzowany".
 - [ ] **Panel Admina**: Brak implementacji "Pauzy" i "Wznowienia" timera (obecnie zwracają 501).
-- [ ] **Bezpieczeństwo**: Implementacja logowania (Authentication) do panelu `/admin`.
+- [x] **Bezpieczeństwo**: Implementacja logowania (Authentication) do panelu `/admin`.
 - [ ] **Panel Admina**: Brak podglądu historii sesji i generowania raportów po zakończeniu.
 
 ### 2.5 Audio i Stabilność
@@ -70,6 +70,8 @@ Na podstawie analizy plików `requirements.md` oraz `use cases.md` względem akt
 | 2026-03-28 | Full test framework: 146 tests covering UC1-UC8, heat state machine, matchmaking, persistence, FLIGHT→FINISHED |
 | 2026-03-28 | Fixed database.py bug: get_group_by_id skips None-mapped channels (prevents ValidationError) |
 | 2026-03-28 | Fixed database.py bug: get_session_by_id uses current_group_index not current_group_id (AUTOINCREMENT mismatch) |
+| 2026-03-28 | Admin authentication: DB-backed session cookies, login/logout/me/register/set_password/list/remove endpoints, login+register modals on session.html, CLI recovery script (manage_admins.py), 25 functional tests in test_auth.py |
+| 2026-03-28 | Admin user management UI: modal on session.html with admin list (change password + remove per row), add account form, change own password form; page reload on logout |
 | 2026-03-28 | Cleaned production DB: removed 493 test pilots and 203 test sessions (id>=13, date>=2026-03-28) |
 | 2026-03-28 | Refactor: removed Group.group_id, unified group identity on group_sequence; renamed Heat.group_id → group_sequence; added idempotent ALTER TABLE migrations for existing DBs |
 | 2026-03-28 | API error responses: replaced all HTTPException raises with {"status": "error", ...} JSON; removed HTTPException import from pilot_api and session_api; updated all affected tests |
@@ -83,7 +85,7 @@ Na podstawie analizy plików `requirements.md` oraz `use cases.md` względem akt
 - **HTML refactoring — shared timer logic and consistent DOM naming**: Extract all timer logic into a single shared `timer.js`. Ensure all DOM element IDs follow the same naming convention in both the admin panel and the dashboard. Move visual/styling differences to separate CSS files (`timer.css` for the dashboard, `timer-admin.css` for the admin panel).
 - **Code language audit**: Review all code comments and program messages — should be in English (currently mixed Polish/English). See section 1 discrepancies for context.
 - **`heat.py`**: Replace deprecated `self.dict()` with `self.model_dump()` (Pydantic v2 warning in all test runs)
-- **Admin auth tests**: Add tests for `/api/admin/login` and `/api/admin/verify` endpoints
+- ~~**Admin auth tests**: Add tests for `/api/admin/login` and `/api/admin/verify` endpoints~~ *(done 2026-03-28 — 25 tests in test_auth.py)*
 - **Pause/resume**: Implement the 501-returning pause/resume endpoints (session_api.py)
 - **Automatic rebalance after pilot removal**: Currently requires manual `/rebalance` call
 - **5th pilot Low Band rule**: Full Low Band channel (LB) support in matchmaking

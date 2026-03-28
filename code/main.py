@@ -2,9 +2,10 @@
 Main module of the WKM Racing Management System.
 Initializes the FastAPI server, mounts routers, and handles session middleware.
 """
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import HTTPException
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 
 import uvicorn
 
@@ -24,6 +25,15 @@ ALLOWED_CHANNELS = ["R1", "R3", "R6", "R7"]
 
 app = FastAPI(title="WKM Racing Management System API")
 app.include_router(api_router)
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """Return all HTTP errors as consistent JSON (status/message dict)."""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"status": "error", "message": exc.detail},
+    )
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 

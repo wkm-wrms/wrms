@@ -1,9 +1,10 @@
 """
 API module for managing training sessions.
 """
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
+from auth import require_admin
 from database import get_db
 from session import Session, get_session, set_session
 from pilot import Pilot
@@ -23,7 +24,7 @@ class SessionStart(BaseModel):
 
 
 @router.post("")
-async def create_session(data: SessionStart):
+async def create_session(data: SessionStart, _: str = Depends(require_admin)):
     """
     Creates a new session and persists it in the database.
     """
@@ -73,7 +74,7 @@ async def get_session_by_id(session_id: str):
 
 
 @router.post("/start")
-async def start_session():
+async def start_session(_: str = Depends(require_admin)):
     """Starts the session timer and activates the first heat (Req: Cycle Start)."""
     session = get_session()
     res = None
@@ -98,7 +99,7 @@ async def start_session():
 
 
 @router.post("/stop")
-async def stop_session():
+async def stop_session(_: str = Depends(require_admin)):
     """Stops and closes the active session (Req: End Session)."""
     session = get_session()
     if session is None:
@@ -112,19 +113,19 @@ async def stop_session():
 
 
 @router.post("/pause")
-async def pause_timer():
+async def pause_timer(_: str = Depends(require_admin)):
     """Pauses the timer (TBD)."""
     return {"status": "error", "message": "Pause functionality is not yet implemented."}
 
 
 @router.post("/resume")
-async def resume_timer():
+async def resume_timer(_: str = Depends(require_admin)):
     """Resumes the timer (TBD)."""
     return {"status": "error", "message": "Resume functionality is not yet implemented."}
 
 
 @router.post("/skip_heat")
-async def skip_heat():
+async def skip_heat(_: str = Depends(require_admin)):
     """Skips the current heat and shifts to the next group in rotation."""
     session = get_session()
     if session is None or not session.is_session_active():
@@ -163,7 +164,7 @@ class PilotAdd(BaseModel):
 
 
 @router.post("/add_pilot")
-async def session_add_pilot(pilot_add: PilotAdd):
+async def session_add_pilot(pilot_add: PilotAdd, _: str = Depends(require_admin)):
     """Adds a pilot to the active session and triggers matchmaking (Req 3.2)."""
     session = get_session()
     if session is None:
@@ -185,7 +186,7 @@ class PilotRemove(BaseModel):
 
 
 @router.post("/remove_pilot")
-async def session_remove_pilot(pilot_remove: PilotRemove):
+async def session_remove_pilot(pilot_remove: PilotRemove, _: str = Depends(require_admin)):
     """Removes a pilot from the session and triggers matchmaking rebalance."""
     session = get_session()
     if session is None:

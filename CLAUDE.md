@@ -84,17 +84,20 @@ so `db_instance = RaceDatabase()` at module load time picks up the test DB autom
 
 ```
 code/
-  main.py               — FastAPI app, middleware, session reload on startup
-  database.py           — RaceDatabase class, all SQLite operations
+  main.py               — FastAPI app, middleware, session reload on startup; 401 exception handler
+  database.py           — RaceDatabase class, all SQLite operations (incl. auth: admin_session table)
   session.py            — Session model, state machine, group management
   heat.py               — Heat model, timer logic, PREP/FLIGHT/FINISHED transitions
+  auth.py               — require_admin Depends; set WRMS_SKIP_AUTH=1 to bypass (tests)
+  manage_admins.py      — Emergency CLI: list/add/reset/remove admin accounts without server
   routers/
-    session_api.py      — /api/session endpoints (create, start, stop, add/remove pilot)
-    heat_api.py         — /api/heat endpoint (current heat + next heat)
-    group_api.py        — /api/groups endpoints (new, delete, rebalance, move_pilot)
-    pilot_api.py        — /api/pilot endpoints (create, search, get by id)
+    session_api.py      — /api/session endpoints (all POST protected by require_admin)
+    heat_api.py         — /api/heat endpoint (public — called by dashboard)
+    group_api.py        — /api/groups endpoints (all POST protected by require_admin)
+    pilot_api.py        — /api/pilot endpoints (GET public; POST / protected by require_admin)
+    admin_api.py        — /api/admin endpoints: login, logout, me, register, set_password, list, remove
   tests/
-    conftest.py         — Fixtures: reset_session, make_pilot, new_session, started_session, etc.
+    conftest.py         — Fixtures; sets WRMS_DB_PATH + WRMS_SKIP_AUTH=1 before app import
     test_pilot.py       — 13 tests: pilot CRUD + search + validation
     test_session_lifecycle.py — 22 tests: session create/start/stop, add/remove pilot
     test_groups_matchmaking.py — 25 tests: rebalance algorithm, manual group management (UC8)
@@ -103,15 +106,17 @@ code/
     test_heat_finished.py — 18 tests: FLIGHT→FINISHED transition, DB persistence, stop() behavior
     test_persistence.py — 32 tests: all write operations verified via direct SQL + fresh DB instances
     test_functional.py  — original 13 tests (overlap with newer files, kept for history)
+    test_auth.py        — 25 tests: login, logout, me, register, set_password, list, remove, 401 enforcement
 docs/
   design/
     requirements.md     — Functional requirements (Req 2.x, 3.x)
     use cases.md        — UC1–UC8 use case descriptions
     TODO.md             — Task tracker, completed items, improvement ideas
+    ADMIN.md            — Admin auth design document (full spec)
   API.md                — API endpoint reference
 static/
   dashboard.html        — Public kiosk view (heat timer, pilot display)
-  session.html          — Admin panel
+  session.html          — Admin panel (login/register modal on load)
   groups.html           — Group management UI
 data/
   race_system.db        — Production SQLite database (gitignored)
@@ -121,9 +126,18 @@ data/
 
 ## API conventions
 
-- All endpoints return HTTP 200 with `{"status": "ok", ...}` or `{"status": "error", "message": "..."}`. No `HTTPException` is raised anywhere.
+- All endpoints return HTTP 200 with `{"status": "ok", ...}` or `{"status": "error", "message": "..."}`. No `HTTPException` is raised anywhere in routers.
+- Protected endpoints raise `HTTPException(401)` via the `require_admin` dependency; `main.py` has a custom exception handler that converts it to `{"status": "error", "message": "Unauthorized"}` with HTTP 401.
 - Frontend JS always checks `data.status === "error"` and calls `alert()`. Network failures are caught with try/catch and also alert.
 - `dashboard.html` is a public kiosk — handles errors silently (shows "SESJA WSTRZYMANA"), no alerts by design.
+
+## Auth conventions
+
+- `WRMS_SKIP_AUTH=1` env var (set in `conftest.py`) bypasses all auth in tests. `test_auth.py` uses `monkeypatch.delenv("WRMS_SKIP_AUTH")` to test real auth.
+- Session cookie: `session_token` (HttpOnly, SameSite=Strict). Sessions stored in `admin_session` table, expire after 24 h.
+- DB-backed (not in-memory) because shared hosting kills Python processes frequently.
+- `session.html` calls `GET /api/admin/me` on load. If not authed → shows login modal. If `first_setup=True` → shows register modal.
+- "Administratorzy" button in the admin bar opens a user management modal: list all admins (change password / remove per row), add new admin, change own password. Logout reloads the page (clears all in-memory state and timers).
 
 ## Model conventions
 

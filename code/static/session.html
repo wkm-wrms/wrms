@@ -412,6 +412,192 @@
             border: 2px dashed var(--primary);
         }
 
+        /* Auth modal */
+        .auth-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 2000;
+            backdrop-filter: blur(6px);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .auth-overlay.active {
+            display: flex;
+        }
+
+        .auth-box {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            width: 360px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+        }
+
+        .auth-box h2 {
+            margin: 0 0 8px 0;
+            font-size: 1.5rem;
+        }
+
+        .auth-box p {
+            color: #666;
+            margin: 0 0 24px 0;
+            font-size: 0.9rem;
+        }
+
+        .auth-box .form-group {
+            margin-bottom: 16px;
+        }
+
+        .auth-footer {
+            margin-top: 10px;
+            text-align: right;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .auth-footer .btn {
+            min-width: 120px;
+        }
+
+        .auth-error {
+            color: var(--danger);
+            font-size: 0.85rem;
+            margin-top: 8px;
+            min-height: 20px;
+        }
+
+        .admin-bar {
+            display: none;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 0 4px 0;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        /* Users management modal */
+        .users-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1500;
+            backdrop-filter: blur(4px);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .users-overlay.active {
+            display: flex;
+        }
+
+        .users-box {
+            background: white;
+            border-radius: 16px;
+            width: 520px;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .users-header {
+            padding: 20px 25px;
+            background: var(--dark);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .users-header h2 {
+            margin: 0;
+            font-size: 1.2rem;
+        }
+
+        .users-body {
+            padding: 20px 25px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .users-section-title {
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #666;
+            margin: 0 0 10px 0;
+        }
+
+        .admin-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            background: var(--light);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .admin-row-name {
+            font-weight: 600;
+        }
+
+        .admin-row-meta {
+            font-size: 0.78rem;
+            color: #888;
+            margin-top: 2px;
+        }
+
+        .admin-row-actions {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .users-divider {
+            border: none;
+            border-top: 1px solid #eee;
+            margin: 20px 0;
+        }
+
+        .users-add-form .form-group {
+            margin-bottom: 12px;
+        }
+
+        .users-add-form input {
+            padding: 10px;
+            font-size: 14px;
+        }
+
+        .users-add-error {
+            color: var(--danger);
+            font-size: 0.85rem;
+            min-height: 18px;
+            margin-bottom: 10px;
+        }
+
+        .users-add-ok {
+            color: var(--success);
+            font-size: 0.85rem;
+            min-height: 18px;
+            margin-bottom: 10px;
+        }
+
         /* Tło modala (overlay) */
         .modal-overlay {
             display: none;
@@ -472,7 +658,57 @@
 
 <body>
 
+    <!-- Login modal -->
+    <div id="loginOverlay" class="auth-overlay">
+        <div class="auth-box">
+            <h2>Logowanie</h2>
+            <p>Panel administracyjny WKM</p>
+            <div class="form-group">
+                <label>Nazwa użytkownika</label>
+                <input type="text" id="loginUsername" autocomplete="username">
+            </div>
+            <div class="form-group">
+                <label>Hasło</label>
+                <input type="password" id="loginPassword" autocomplete="current-password"
+                       onkeydown="if(event.key==='Enter') doLogin()">
+            </div>
+            <div class="auth-error" id="loginError"></div>
+            <div class="auth-footer">
+                <span></span>
+                <button class="btn btn-primary" onclick="doLogin()">Zaloguj się</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Register modal (first-time setup) -->
+    <div id="registerOverlay" class="auth-overlay">
+        <div class="auth-box">
+            <h2>Pierwsze uruchomienie</h2>
+            <p>Utwórz pierwsze konto administratora</p>
+            <div class="form-group">
+                <label>Nazwa użytkownika</label>
+                <input type="text" id="regUsername" autocomplete="username">
+            </div>
+            <div class="form-group">
+                <label>Hasło</label>
+                <input type="password" id="regPassword" autocomplete="new-password"
+                       onkeydown="if(event.key==='Enter') doRegister()">
+            </div>
+            <div class="auth-error" id="registerError"></div>
+            <div class="auth-footer">
+                <span></span>
+                <button class="btn btn-success" onclick="doRegister()">Utwórz konto</button>
+            </div>
+        </div>
+    </div>
+
     <div class="container">
+        <!-- Admin bar: shown when logged in -->
+        <div class="admin-bar" id="adminBar">
+            <span id="adminUsername"></span>
+            <button class="btn btn-sm btn-primary" onclick="openUsersModal()">Administratorzy</button>
+            <button class="btn btn-sm btn-warning" onclick="doLogout()">Wyloguj</button>
+        </div>
         <div class="card">
             <div id="view-none" class="view">
                 <h2>Konfiguracja Nowej Sesji</h2>
@@ -577,6 +813,52 @@
 
     </div>
     </div>
+    <!-- Users management modal -->
+    <div id="usersOverlay" class="users-overlay">
+        <div class="users-box">
+            <div class="users-header">
+                <h2>Zarządzanie administratorami</h2>
+                <button class="close-btn" style="color:white" onclick="closeUsersModal()">&times;</button>
+            </div>
+            <div class="users-body">
+                <p class="users-section-title">Aktywni administratorzy</p>
+                <div id="adminsList"></div>
+
+                <hr class="users-divider">
+
+                <p class="users-section-title">Dodaj administratora</p>
+                <div class="users-add-form">
+                    <div class="form-group">
+                        <label>Nazwa użytkownika</label>
+                        <input type="text" id="newAdminUsername" placeholder="login">
+                    </div>
+                    <div class="form-group">
+                        <label>Hasło</label>
+                        <input type="password" id="newAdminPassword" placeholder="hasło"
+                               onkeydown="if(event.key==='Enter') addAdmin()">
+                    </div>
+                    <div class="users-add-error" id="addAdminError"></div>
+                    <div class="users-add-ok" id="addAdminOk"></div>
+                    <button class="btn btn-success" onclick="addAdmin()">Dodaj konto</button>
+                </div>
+
+                <hr class="users-divider">
+
+                <p class="users-section-title">Zmień swoje hasło</p>
+                <div class="users-add-form">
+                    <div class="form-group">
+                        <label>Nowe hasło</label>
+                        <input type="password" id="newSelfPassword" placeholder="nowe hasło"
+                               onkeydown="if(event.key==='Enter') changeSelfPassword()">
+                    </div>
+                    <div class="users-add-error" id="changePwError"></div>
+                    <div class="users-add-ok" id="changePwOk"></div>
+                    <button class="btn btn-primary" onclick="changeSelfPassword()">Zmień hasło</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="groupModal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
@@ -1224,7 +1506,262 @@
             }
         }
 
-        window.onload = updateUI;
+        // ---------------------------------------------------------------------------
+        // Users management modal
+        // ---------------------------------------------------------------------------
+
+        let _currentAdminUsername = null;
+
+        async function openUsersModal() {
+            document.getElementById('usersOverlay').classList.add('active');
+            document.getElementById('addAdminError').innerText = '';
+            document.getElementById('addAdminOk').innerText = '';
+            document.getElementById('changePwError').innerText = '';
+            document.getElementById('changePwOk').innerText = '';
+            document.getElementById('newAdminUsername').value = '';
+            document.getElementById('newAdminPassword').value = '';
+            document.getElementById('newSelfPassword').value = '';
+            await loadAdminsList();
+        }
+
+        function closeUsersModal() {
+            document.getElementById('usersOverlay').classList.remove('active');
+        }
+
+        async function loadAdminsList() {
+            const container = document.getElementById('adminsList');
+            container.innerHTML = '<em style="color:#aaa">Ładowanie...</em>';
+            try {
+                const res = await fetch('/api/admin/list');
+                const data = await res.json();
+                if (data.status !== 'ok') {
+                    container.innerHTML = '<em style="color:red">Błąd: ' + (data.message || '?') + '</em>';
+                    return;
+                }
+                if (data.admins.length === 0) {
+                    container.innerHTML = '<em style="color:#aaa">Brak administratorów.</em>';
+                    return;
+                }
+                container.innerHTML = '';
+                data.admins.forEach(admin => {
+                    const isSelf = admin.username === _currentAdminUsername;
+                    const row = document.createElement('div');
+                    row.className = 'admin-row';
+                    row.innerHTML = `
+                        <div>
+                            <div class="admin-row-name">${admin.username}${isSelf ? ' <span style="color:var(--primary);font-size:0.75rem">(Ty)</span>' : ''}</div>
+                            <div class="admin-row-meta">Dodany: ${admin.created_at ? admin.created_at.split('T')[0] : '—'}</div>
+                        </div>
+                        <div class="admin-row-actions">
+                            <button class="btn btn-sm btn-primary" onclick="promptChangePassword('${admin.username}')">Zmień hasło</button>
+                            ${isSelf ? '' : `<button class="btn btn-sm btn-danger" onclick="removeAdmin('${admin.username}')">Usuń</button>`}
+                        </div>`;
+                    container.appendChild(row);
+                });
+            } catch (err) {
+                container.innerHTML = '<em style="color:red">Błąd sieci: ' + err.message + '</em>';
+            }
+        }
+
+        async function addAdmin() {
+            const username = document.getElementById('newAdminUsername').value.trim();
+            const password = document.getElementById('newAdminPassword').value;
+            const errEl = document.getElementById('addAdminError');
+            const okEl = document.getElementById('addAdminOk');
+            errEl.innerText = '';
+            okEl.innerText = '';
+            if (!username || !password) { errEl.innerText = 'Podaj login i hasło.'; return; }
+            try {
+                const res = await fetch('/api/admin/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+                if (data.status !== 'ok') { errEl.innerText = data.message || 'Błąd.'; return; }
+                okEl.innerText = `Konto "${username}" utworzone.`;
+                document.getElementById('newAdminUsername').value = '';
+                document.getElementById('newAdminPassword').value = '';
+                await loadAdminsList();
+            } catch (err) {
+                errEl.innerText = 'Błąd sieci: ' + err.message;
+            }
+        }
+
+        async function removeAdmin(username) {
+            if (!confirm(`Usunąć administratora "${username}"? Tej operacji nie można cofnąć.`)) return;
+            try {
+                const res = await fetch('/api/admin/remove', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username })
+                });
+                const data = await res.json();
+                if (data.status !== 'ok') { alert('Błąd: ' + (data.message || '?')); return; }
+                await loadAdminsList();
+            } catch (err) {
+                alert('Błąd sieci: ' + err.message);
+            }
+        }
+
+        async function promptChangePassword(username) {
+            const newPassword = prompt(`Nowe hasło dla "${username}":`);
+            if (newPassword === null) return; // anulowano
+            if (!newPassword.trim()) { alert('Hasło nie może być puste.'); return; }
+            try {
+                const res = await fetch('/api/admin/set_password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, new_password: newPassword })
+                });
+                const data = await res.json();
+                if (data.status !== 'ok') { alert('Błąd: ' + (data.message || '?')); return; }
+                alert(`Hasło dla "${username}" zostało zmienione.`);
+            } catch (err) {
+                alert('Błąd sieci: ' + err.message);
+            }
+        }
+
+        async function changeSelfPassword() {
+            const newPassword = document.getElementById('newSelfPassword').value;
+            const errEl = document.getElementById('changePwError');
+            const okEl = document.getElementById('changePwOk');
+            errEl.innerText = '';
+            okEl.innerText = '';
+            if (!newPassword) { errEl.innerText = 'Podaj nowe hasło.'; return; }
+            try {
+                const res = await fetch('/api/admin/set_password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: _currentAdminUsername, new_password: newPassword })
+                });
+                const data = await res.json();
+                if (data.status !== 'ok') { errEl.innerText = data.message || 'Błąd.'; return; }
+                okEl.innerText = 'Hasło zmienione.';
+                document.getElementById('newSelfPassword').value = '';
+            } catch (err) {
+                errEl.innerText = 'Błąd sieci: ' + err.message;
+            }
+        }
+
+        // ---------------------------------------------------------------------------
+        // Auth
+        // ---------------------------------------------------------------------------
+
+        function showLogin() {
+            document.getElementById('loginOverlay').classList.add('active');
+            document.getElementById('registerOverlay').classList.remove('active');
+            document.getElementById('loginError').innerText = '';
+            setTimeout(() => document.getElementById('loginUsername').focus(), 100);
+        }
+
+        function showRegister() {
+            document.getElementById('registerOverlay').classList.add('active');
+            document.getElementById('loginOverlay').classList.remove('active');
+            document.getElementById('registerError').innerText = '';
+            setTimeout(() => document.getElementById('regUsername').focus(), 100);
+        }
+
+        function hideAuthModals() {
+            document.getElementById('loginOverlay').classList.remove('active');
+            document.getElementById('registerOverlay').classList.remove('active');
+        }
+
+        async function checkAuth() {
+            try {
+                const res = await fetch('/api/admin/me');
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    hideAuthModals();
+                    _currentAdminUsername = data.username;
+                    const bar = document.getElementById('adminBar');
+                    bar.style.display = 'flex';
+                    document.getElementById('adminUsername').innerText = data.username;
+                    return true;
+                }
+                if (data.first_setup) {
+                    showRegister();
+                } else {
+                    showLogin();
+                }
+                return false;
+            } catch (err) {
+                showLogin();
+                return false;
+            }
+        }
+
+        async function doLogin() {
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            if (!username || !password) {
+                document.getElementById('loginError').innerText = 'Podaj login i hasło.';
+                return;
+            }
+            try {
+                const res = await fetch('/api/admin/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+                if (data.status !== 'ok') {
+                    document.getElementById('loginError').innerText =
+                        data.message || 'Nieprawidłowe dane.';
+                    return;
+                }
+            } catch (err) {
+                document.getElementById('loginError').innerText = 'Błąd sieci: ' + err.message;
+                return;
+            }
+            document.getElementById('loginPassword').value = '';
+            await checkAuth();
+            updateUI();
+        }
+
+        async function doRegister() {
+            const username = document.getElementById('regUsername').value.trim();
+            const password = document.getElementById('regPassword').value;
+            if (!username || !password) {
+                document.getElementById('registerError').innerText = 'Podaj login i hasło.';
+                return;
+            }
+            try {
+                const res = await fetch('/api/admin/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+                if (data.status !== 'ok') {
+                    document.getElementById('registerError').innerText =
+                        data.message || 'Błąd rejestracji.';
+                    return;
+                }
+            } catch (err) {
+                document.getElementById('registerError').innerText = 'Błąd sieci: ' + err.message;
+                return;
+            }
+            // Auto-login after successful registration
+            document.getElementById('loginUsername').value =
+                document.getElementById('regUsername').value;
+            document.getElementById('loginPassword').value =
+                document.getElementById('regPassword').value;
+            document.getElementById('regPassword').value = '';
+            await doLogin();
+        }
+
+        async function doLogout() {
+            try {
+                await fetch('/api/admin/logout', { method: 'POST' });
+            } catch (_) { /* ignore */ }
+            window.location.reload();
+        }
+
+        window.onload = async function () {
+            const authed = await checkAuth();
+            if (authed) updateUI();
+        };
     </script>
 </body>
 

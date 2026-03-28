@@ -25,6 +25,9 @@ _db_fd, _TEST_DB_PATH = tempfile.mkstemp(suffix=".db", prefix="wrms_test_")
 os.close(_db_fd)
 os.remove(_TEST_DB_PATH)          # usuń pusty plik — RaceDatabase go odtworzy
 os.environ["WRMS_DB_PATH"] = _TEST_DB_PATH
+# Bypass authentication in all tests by default.
+# test_auth.py uses monkeypatch.delenv("WRMS_SKIP_AUTH") to test real auth.
+os.environ["WRMS_SKIP_AUTH"] = "1"
 
 
 def _cleanup_test_db():

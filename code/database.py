@@ -10,6 +10,7 @@ importing the module so the production database is never touched.
 """
 import json
 import os
+import secrets
 import sqlite3
 from datetime import datetime
 import hashlib
@@ -76,7 +77,16 @@ class RaceDatabase:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS user (
                     username TEXT PRIMARY KEY,
-                    password_hash TEXT NOT NULL
+                    password_hash TEXT NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )""")
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS admin_session (
+                    token TEXT PRIMARY KEY,
+                    username TEXT NOT NULL,
+                    created_at REAL NOT NULL,
+                    expires_at REAL NOT NULL,
+                    FOREIGN KEY (username) REFERENCES user(username)
                 )""")
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS session (
@@ -179,6 +189,15 @@ class RaceDatabase:
                     conn.execute(_sql)
                 except sqlite3.OperationalError:
                     pass  # column already renamed or freshly created with new name
+            # Idempotent column additions for databases created before the auth feature.
+            _adds = [
+                "ALTER TABLE user ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP",
+            ]
+            for _sql in _adds:
+                try:
+                    conn.execute(_sql)
+                except sqlite3.OperationalError:
+                    pass  # column already exists
             conn.commit()
 
     # ------------------------------------------------------------------
@@ -775,6 +794,127 @@ class RaceDatabase:
             ).fetchone()
             hashed = hashlib.sha256(password.encode()).hexdigest()
             return bool(row and row['password_hash'] == hashed)
+
+    def create_admin_session(self, username: str) -> str:
+        """
+        Create a new DB-backed admin session and return the token.
+
+        Session expires after 24 hours. Old expired sessions for the same
+        user are pruned on creation.
+
+        Args:
+            username: The authenticated admin's username.
+
+        Returns:
+            A 64-character hex session token.
+        """
+        token = secrets.token_hex(32)
+        now = datetime.now().timestamp()
+        expires_at = now + 86400  # 24 hours
+        with self._get_conn() as conn:
+            # Prune expired sessions to keep the table tidy
+            conn.execute("DELETE FROM admin_session WHERE expires_at < ?", (now,))
+            conn.execute(
+                "INSERT INTO admin_session (token, username, created_at, expires_at)"
+                " VALUES (?, ?, ?, ?)",
+                (token, username, now, expires_at),
+            )
+            conn.commit()
+        return token
+
+    def validate_admin_session(self, token: str) -> str:
+        """
+        Validate a session token and return the associated username.
+
+        Args:
+            token: The session cookie value to validate.
+
+        Returns:
+            The admin username if the token is valid and not expired, else None.
+        """
+        if not token:
+            return None
+        now = datetime.now().timestamp()
+        with self._get_conn() as conn:
+            row = conn.execute(
+                "SELECT username FROM admin_session WHERE token = ? AND expires_at > ?",
+                (token, now),
+            ).fetchone()
+            return row["username"] if row else None
+
+    def delete_admin_session(self, token: str):
+        """
+        Delete a session token (logout).
+
+        Args:
+            token: The session token to invalidate.
+        """
+        with self._get_conn() as conn:
+            conn.execute("DELETE FROM admin_session WHERE token = ?", (token,))
+            conn.commit()
+
+    def has_any_admin(self) -> bool:
+        """
+        Return True if at least one admin account exists in the database.
+
+        Used to determine whether the first-time setup flow should be shown.
+        """
+        with self._get_conn() as conn:
+            row = conn.execute("SELECT 1 FROM user LIMIT 1").fetchone()
+            return row is not None
+
+    def list_admins(self) -> list:
+        """
+        Return all admin accounts (username and created_at, no password hash).
+
+        Returns:
+            List of dicts with 'username' and 'created_at' keys.
+        """
+        with self._get_conn() as conn:
+            rows = conn.execute(
+                "SELECT username, created_at FROM user ORDER BY created_at"
+            ).fetchall()
+            return [{"username": r["username"], "created_at": r["created_at"]} for r in rows]
+
+    def remove_admin(self, username: str) -> bool:
+        """
+        Delete an admin account and all its active sessions.
+
+        Args:
+            username: The admin account to remove.
+
+        Returns:
+            True if the account existed and was removed, False if not found.
+        """
+        with self._get_conn() as conn:
+            cursor = conn.execute("DELETE FROM user WHERE username = ?", (username,))
+            if cursor.rowcount == 0:
+                return False
+            conn.execute("DELETE FROM admin_session WHERE username = ?", (username,))
+            conn.commit()
+        return True
+
+    def set_admin_password(self, username: str, new_password: str) -> bool:
+        """
+        Update the password hash for an admin account.
+
+        Args:
+            username:     Admin account to update.
+            new_password: New plain-text password (will be SHA-256 hashed).
+
+        Returns:
+            True if the account existed and was updated, False if not found.
+        """
+        hashed = hashlib.sha256(new_password.encode()).hexdigest()
+        with self._get_conn() as conn:
+            cursor = conn.execute(
+                "UPDATE user SET password_hash = ? WHERE username = ?",
+                (hashed, username),
+            )
+            if cursor.rowcount == 0:
+                return False
+            conn.commit()
+        return True
 
 
 db_instance = RaceDatabase()
