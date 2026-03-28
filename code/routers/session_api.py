@@ -38,7 +38,10 @@ async def create_session(data: SessionStart):
             status_code=400, detail="Preparation time must be greater than 0.")
 
     session = Session(
-        name=data.name, flight_duration_sec=data.flight_duration_sec, prep_duration_sec=data.prep_duration_sec)
+        name=data.name,
+        flight_duration_sec=data.flight_duration_sec,
+        prep_duration_sec=data.prep_duration_sec,
+    )
     db.create_session(session)
     set_session(session)
     return {"status": "ok", "session": session}
@@ -84,7 +87,8 @@ async def start_session():
     if session.is_session_active():
         return {"status": "error", "message": "Session is already active."}
     if len(session.active_pilots) == 0:
-        return {"status": "error", "message": "No pilots added. Add at least one pilot before starting."}
+        msg = "No pilots added. Add at least one pilot before starting."
+        return {"status": "error", "message": msg}
     if len(session.groups) == 0:
         return {"status": "error", "message": "No groups created. Create groups before starting."}
     try:
@@ -141,13 +145,14 @@ async def skip_heat():
         db.create_or_update_heat(session.current_heat, session.active_pilots)
         db.create_or_update_heat(session.next_heat, session.active_pilots)
 
-        # If rotation archived any heats, persist them to the database
-        while session._archive_heats:
-            db.create_or_update_heat(
-                session._archive_heats.pop(), session.active_pilots)
+        # Drain the archive queue and persist finished heats
+        archived = session.pop_archived_heat()
+        while archived:
+            db.create_or_update_heat(archived, session.active_pilots)
+            archived = session.pop_archived_heat()
 
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     return {"status": "ok", "message": "Heat skipped, preparing next group."}
 

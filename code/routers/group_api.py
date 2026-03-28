@@ -5,7 +5,7 @@ Handles group management, matchmaking (rebalancing), and manual pilot movement.
 from typing import Optional
 from pydantic import BaseModel
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
 from session import get_session
 from database import RaceDatabase, get_db

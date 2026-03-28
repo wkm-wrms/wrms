@@ -1,9 +1,11 @@
+"""
+WSGI entry point for shared-hosting deployments (e.g. Passenger/uWSGI).
+
+Wraps the FastAPI ASGI application in an ASGIMiddleware so it can be served
+by a WSGI server. The 'application' object is the standard WSGI entry point
+recognised by Passenger and compatible servers.
+"""
 from a2wsgi import ASGIMiddleware
 from main import app
 
-
-# To jest bolerplate dla uWSGI, który pozwala na uruchomienie aplikacji FastAPI jako aplikacji WSGI. Używamy ASGIMiddleware, aby opakować naszą aplikację FastAPI i uczynić ją kompatybilną z uWSGI.
-
-# Ten obiekt 'application' zostanie zrozumiany przez uWSGI
 application = ASGIMiddleware(app)
-# Jeśli chcesz uruchomić aplikację bezpośrednio (np. do testów), możesz użyć tego kodu:

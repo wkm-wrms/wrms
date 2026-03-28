@@ -37,12 +37,11 @@ async def session_persistence_middleware(request, call_next):
     if session:
         res = session.loop()
         if res:
-            db.create_or_update_heat(
-                session.current_heat, session.active_pilots)
+            db.create_or_update_heat(session.current_heat, session.active_pilots)
             db.create_or_update_heat(session.next_heat, session.active_pilots)
-            if len(session._archive_heats) > 0:
-                db.create_or_update_heat(
-                    session._archive_heats.pop(), session.active_pilots)
+            archived = session.pop_archived_heat()
+            if archived:
+                db.create_or_update_heat(archived, session.active_pilots)
     response = await call_next(request)
     return response
 
@@ -77,7 +76,7 @@ async def serve_favicon():
     return FileResponse("static/wkm.ico")
 
 
-class Main:
+class Main:  # pylint: disable=too-few-public-methods
     """Helper class to run the uvicorn server."""
     @staticmethod
     def run(port=8000, reload=True):

@@ -64,6 +64,7 @@ Na podstawie analizy plików `requirements.md` oraz `use cases.md` względem akt
 
 | Date | Item |
 | :--- | :--- |
+| 2026-03-28 | Pylint compliance: all Python files reach 10.00/10. Added docstrings, fixed import order, removed unused imports, replaced deprecated API calls, added pop_archived_heat() public accessor |
 | 2026-03-28 | Fixed 7 critical bugs: table names, hashlib encoding, mutable default datetime, dict mutation in remove_pilot, Pydantic Optional defaults, nested DB connections, dead variable |
 | 2026-03-28 | Test isolation: WRMS_DB_PATH env var in database.py, conftest.py sets temp DB before app import |
 | 2026-03-28 | Full test framework: 146 tests covering UC1-UC8, heat state machine, matchmaking, persistence, FLIGHT→FINISHED |
@@ -73,6 +74,10 @@ Na podstawie analizy plików `requirements.md` oraz `use cases.md` względem akt
 
 ## 6. Ideas / Future Improvements
 
+- **API method naming convention**: All methods in internal classes that are called by the API layer should be prefixed with `api_`. Their docstrings should fully describe accepted parameters and return values (type, shape, meaning).
+- **API error responses — no HTTP exceptions**: All API endpoints must return `{"status": "error", "message": "..."}` JSON instead of raising `HTTPException` (4xx/5xx). Async JS error handling in the browser is painful when the server raises HTTP-level errors. Every endpoint should always return 200 with a status field.
+- **Refactor/split database.py**: The class is large and hard to navigate. Analyse whether it can be split into cohesive submodules (e.g. `db_session.py`, `db_heat.py`, `db_pilot.py`, `db_group.py`) while keeping the public interface stable.
+- **HTML refactoring — shared timer logic and consistent DOM naming**: Extract all timer logic into a single shared `timer.js`. Ensure all DOM element IDs follow the same naming convention in both the admin panel and the dashboard. Move visual/styling differences to separate CSS files (`timer.css` for the dashboard, `timer-admin.css` for the admin panel).
 - **Code language audit**: Review all code comments and program messages — should be in English (currently mixed Polish/English). See section 1 discrepancies for context.
 - **`heat.py`**: Replace deprecated `self.dict()` with `self.model_dump()` (Pydantic v2 warning in all test runs)
 - **Admin auth tests**: Add tests for `/api/admin/login` and `/api/admin/verify` endpoints
