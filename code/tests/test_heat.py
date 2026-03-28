@@ -134,7 +134,7 @@ class TestHeatRotation:
         heat1 = client.get("/api/heat").json()["heat"]
         client.post("/api/session/skip_heat")
         heat2 = client.get("/api/heat").json()["heat"]
-        # Jeśli są 2 grupy, group_id powinno być inne
+        # Jeśli są 2 grupy, group_sequence powinno być inne
         # Jeśli jest 1 grupa, wraca ta sama — akceptowalne
         assert heat2["heat_number"] == heat1["heat_number"] + 1
 

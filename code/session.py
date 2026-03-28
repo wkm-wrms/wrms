@@ -368,7 +368,7 @@ class Session(BaseModel):  # pylint: disable=too-many-instance-attributes
         return Heat(
             session_id=self.session_id,
             heat_number=heat_number,
-            group_id=group.group_id,
+            group_sequence=group.group_sequence,
             channels=group.channels.copy(),
             prep_time=self.prep_duration_sec,
             flight_time=self.flight_duration_sec,
@@ -468,7 +468,7 @@ class Session(BaseModel):  # pylint: disable=too-many-instance-attributes
         if self.groups is None:
             self.groups = []
         seq = len(self.groups) + 1
-        self.groups.append(Group(group_id=seq, channels={}, group_sequence=seq))
+        self.groups.append(Group(group_sequence=seq, channels={}))
         self._dirty_list["groups"] = True
         return {"status": "ok", "groups": self.groups}
 
@@ -543,16 +543,15 @@ class Session(BaseModel):  # pylint: disable=too-many-instance-attributes
                 analog_idx += 1
 
             self.groups.append(Group(
-                group_id=i + 1,
-                channels=channels,
                 group_sequence=i + 1,
+                channels=channels,
             ))
             pilot_index += current_group_size
 
         self._dirty_list["groups"] = True
         print(
             "Balanced groups: "
-            + str([{'id': g.group_id, 'channels': g.channels} for g in self.groups])
+            + str([{'seq': g.group_sequence, 'channels': g.channels} for g in self.groups])
         )
 
 

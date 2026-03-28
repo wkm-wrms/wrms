@@ -86,7 +86,7 @@ class RaceDatabase:
                     prep_duration_sec INTEGER,
                     is_active BOOLEAN DEFAULT 0,
                     current_heat_number INTEGER,
-                    current_group_id INTEGER,
+                    current_group_sequence INTEGER,
                     current_group_index INTEGER,
                     next_group_index INTEGER,
                     next_heat_number INTEGER,
@@ -132,7 +132,7 @@ class RaceDatabase:
                 CREATE TABLE IF NOT EXISTS heat (
                     session_id INTEGER NOT NULL,
                     heat_number INTEGER NOT NULL,
-                    group_id INTEGER NOT NULL,
+                    group_sequence INTEGER NOT NULL,
                     prep_time INTEGER NOT NULL,
                     flight_time INTEGER NOT NULL,
                     status TEXT DEFAULT 'INIT',
@@ -168,6 +168,17 @@ class RaceDatabase:
                 CREATE INDEX IF NOT EXISTS idx_pilot_history
                     ON pilot_heat (pilot_id, session_id)
             """)
+            # Idempotent column renames for databases created before this refactor.
+            # ALTER TABLE RENAME COLUMN is a no-op when the old column no longer exists.
+            _renames = [
+                "ALTER TABLE heat RENAME COLUMN group_id TO group_sequence",
+                "ALTER TABLE session RENAME COLUMN current_group_id TO current_group_sequence",
+            ]
+            for _sql in _renames:
+                try:
+                    conn.execute(_sql)
+                except sqlite3.OperationalError:
+                    pass  # column already renamed or freshly created with new name
             conn.commit()
 
     # ------------------------------------------------------------------
@@ -384,7 +395,7 @@ class RaceDatabase:
                        is_active = ?,
                        current_heat_number = ?,
                        next_heat_number = ?,
-                       current_group_id = ?,
+                       current_group_sequence = ?,
                        current_phase = ?,
                        phase_before_pause = ?,
                        current_group_index = ?,
@@ -397,7 +408,7 @@ class RaceDatabase:
                     session.is_active,
                     session.current_heat_number or None,
                     session.next_heat_number or None,
-                    session.current_group.group_id if session.current_group else None,
+                    session.current_group.group_sequence if session.current_group else None,
                     session.current_phase,
                     session.phase_before_pause,
                     session.current_group_index,
@@ -510,9 +521,8 @@ class RaceDatabase:
                         channels[channel] = active_pilots[pilot_id]
 
             return Group(
-                group_id=row['group_id'],
-                channels=channels,
                 group_sequence=row['group_sequence'],
+                channels=channels,
             )
 
     def update_groups(self, session: Session):
@@ -583,7 +593,7 @@ class RaceDatabase:
         if not existing:
             query_heat = """
                 INSERT INTO heat (
-                    group_id, status, channels_json,
+                    group_sequence, status, channels_json,
                     prep_time, flight_time,
                     created_at, prep_started_at, flight_started_at, finished_at,
                     remaining_seconds_at_pause, last_resume_at,
@@ -600,7 +610,7 @@ class RaceDatabase:
         else:
             query_heat = """
                 UPDATE heat SET
-                    group_id=?, status=?, channels_json=?,
+                    group_sequence=?, status=?, channels_json=?,
                     prep_time=?, flight_time=?,
                     created_at=?, prep_started_at=?, flight_started_at=?,
                     finished_at=?,
@@ -616,7 +626,7 @@ class RaceDatabase:
             """
 
         params = (
-            heat.group_id, heat.status, json.dumps(channels),
+            heat.group_sequence, heat.status, json.dumps(channels),
             heat.prep_time, heat.flight_time,
             created_at, prep_started_at, flight_started_at, finished_at,
             heat.remaining_seconds_at_pause, last_resume_at,
@@ -683,7 +693,7 @@ class RaceDatabase:
             A Heat instance, or None if not found.
         """
         query = """
-            SELECT session_id, heat_number, group_id, status,
+            SELECT session_id, heat_number, group_sequence, status,
                    prep_time, flight_time, channels_json, created_at,
                    prep_started_at, flight_started_at, finished_at,
                    remaining_seconds_at_pause, last_resume_at
@@ -712,7 +722,7 @@ class RaceDatabase:
                 heat_number=row["heat_number"],
                 prep_time=row["prep_time"],
                 flight_time=row["flight_time"],
-                group_id=row["group_id"],
+                group_sequence=row["group_sequence"],
                 channels=channels,
                 status=row["status"],
                 prep_started_at=_ts(row["prep_started_at"]),

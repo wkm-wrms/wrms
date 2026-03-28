@@ -13,22 +13,20 @@ class Group(BaseModel):
     A training group: an ordered set of channel assignments for one heat slot.
 
     Attributes:
-        group_id:       In-memory sequential identifier (1-based). Note: this
-                        does NOT correspond to the AUTOINCREMENT session_group.group_id
-                        in the database — see TODO for planned refactor.
+        group_sequence: 1-based display order within the session. This is the
+                        sole in-memory identifier for a group. The database
+                        stores an AUTOINCREMENT group_id internally, but that
+                        key never surfaces in the model.
         channels:       Map of channel name (e.g. 'R1') to ActivePilot.
-        group_sequence: Display order within the session, 1-based.
     """
 
-    group_id: int
-    channels: dict[str, ActivePilot] = {}
     group_sequence: int
+    channels: dict[str, ActivePilot] = {}
 
-    def __init__(self, group_id: int, channels: dict[str, ActivePilot], group_sequence: int):
+    def __init__(self, group_sequence: int, channels: dict[str, ActivePilot]):
         """
         Args:
-            group_id:       Sequential in-memory identifier.
-            channels:       Channel-to-pilot mapping (snapshot or live roster).
             group_sequence: 1-based display order within the session.
+            channels:       Channel-to-pilot mapping (snapshot or live roster).
         """
-        super().__init__(group_id=group_id, channels=channels, group_sequence=group_sequence)
+        super().__init__(group_sequence=group_sequence, channels=channels)

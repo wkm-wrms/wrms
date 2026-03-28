@@ -31,7 +31,7 @@ class Heat(BaseModel):
     prep_time: int
     flight_time: int
 
-    group_id: int
+    group_sequence: int
 
     channels: dict[str, ActivePilot]
 
@@ -50,7 +50,7 @@ class Heat(BaseModel):
         heat_number: int,
         prep_time: int,
         flight_time: int,
-        group_id: int = None,
+        group_sequence: int = None,
         group: Group = None,
         channels: dict[str, ActivePilot] = None,
         status: str = "PLANNED",
@@ -62,9 +62,9 @@ class Heat(BaseModel):
         last_resume_at: Optional[datetime] = None,
     ):
         """
-        Create a Heat, optionally deriving group_id and channels from a Group.
+        Create a Heat, optionally deriving group_sequence and channels from a Group.
 
-        Either group_id or group must be provided. When group is given and
+        Either group_sequence or group must be provided. When group is given and
         channels is None, channels are copied from the group (snapshot semantics).
 
         Args:
@@ -72,8 +72,8 @@ class Heat(BaseModel):
             heat_number:                Sequential heat number within the session.
             prep_time:                  Preparation phase duration in seconds.
             flight_time:                Flight phase duration in seconds.
-            group_id:                   Source group identifier (in-memory sequential).
-            group:                      Source Group object; used when group_id is None.
+            group_sequence:             1-based group position within the session.
+            group:                      Source Group object; used when group_sequence is None.
             channels:                   Explicit channel map; copied from group if None.
             status:                     Initial status string (default 'PLANNED').
             created_at:                 Creation timestamp; defaults to now().
@@ -85,11 +85,11 @@ class Heat(BaseModel):
         """
         if created_at is None:
             created_at = datetime.now()
-        if group_id is None:
+        if group_sequence is None:
             if group:
-                group_id = group.group_id
+                group_sequence = group.group_sequence
             else:
-                raise ValueError("Provide either group_id or group.")
+                raise ValueError("Provide either group_sequence or group.")
         if channels is None and group:
             # Copy group channels to create an immutable heat snapshot
             channels = group.channels.copy()
@@ -99,7 +99,7 @@ class Heat(BaseModel):
             heat_number=heat_number,
             prep_time=prep_time,
             flight_time=flight_time,
-            group_id=group_id,
+            group_sequence=group_sequence,
             channels=channels,
             status=status,
             created_at=created_at,
