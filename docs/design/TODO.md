@@ -60,5 +60,28 @@ Na podstawie analizy plików `requirements.md` oraz `use cases.md` względem akt
 - **SSE**: Zrezygnowano z technologii Server-Sent Events z powodu ograniczeń hostingu dzielonego. System będzie polegał na zapytaniach HTTP GET (polling).
 - **Prywatny Ekran Pilota**: Całkowity brak implementacji (scenariusz "Pilot uruchamia prywatny ekran monitorujący").
 
+## 5. Completed (Done)
+
+| Date | Item |
+| :--- | :--- |
+| 2026-03-28 | Fixed 7 critical bugs: table names, hashlib encoding, mutable default datetime, dict mutation in remove_pilot, Pydantic Optional defaults, nested DB connections, dead variable |
+| 2026-03-28 | Test isolation: WRMS_DB_PATH env var in database.py, conftest.py sets temp DB before app import |
+| 2026-03-28 | Full test framework: 146 tests covering UC1-UC8, heat state machine, matchmaking, persistence, FLIGHT→FINISHED |
+| 2026-03-28 | Fixed database.py bug: get_group_by_id skips None-mapped channels (prevents ValidationError) |
+| 2026-03-28 | Fixed database.py bug: get_session_by_id uses current_group_index not current_group_id (AUTOINCREMENT mismatch) |
+| 2026-03-28 | Cleaned production DB: removed 493 test pilots and 203 test sessions (id>=13, date>=2026-03-28) |
+
+## 6. Ideas / Future Improvements
+
+- **Code language audit**: Review all code comments and program messages — should be in English (currently mixed Polish/English). See section 1 discrepancies for context.
+- **`heat.py`**: Replace deprecated `self.dict()` with `self.model_dump()` (Pydantic v2 warning in all test runs)
+- **Admin auth tests**: Add tests for `/api/admin/login` and `/api/admin/verify` endpoints
+- **Pause/resume**: Implement the 501-returning pause/resume endpoints (session_api.py)
+- **Automatic rebalance after pilot removal**: Currently requires manual `/rebalance` call
+- **5th pilot Low Band rule**: Full Low Band channel (LB) support in matchmaking
+- **`is_active` flag semantics**: `session.stop()` sets `current_phase='FINISHED'` but leaves `is_active=True`; consider aligning or documenting
+- **`current_group_id` in session table**: Stores the in-memory `group_id` (sequential 1,2,3) but `session_group.group_id` is AUTOINCREMENT — they never match. The column is effectively unused. Fix: either sync `Group.group_id` with DB AUTOINCREMENT after each `update_groups()`, or drop the column and always resolve current group via `current_group_index` (current approach after 2026-03-28 fix).
+- **Refactor: remove `group_id` from `Group` model** — `group_id` and `group_sequence` are always equal in memory (both set to `i+1`). `group_id` only diverges when loading from DB (gets AUTOINCREMENT value). Proposed change: remove `Group.group_id`, use `group_sequence` as sole in-memory identifier; rename `Heat.group_id` → `Heat.group_sequence`; rename `session.current_group_id` → `session.current_group_sequence` in DB. DB AUTOINCREMENT `session_group.group_id` stays as internal DB key.
+
 ---
-*Raport zaktualizowany: 2026-03-28 przez Gemini Code Assist*
+*Updated: 2026-03-28*

@@ -299,8 +299,8 @@ class RaceDatabase:
                     next_heat = heats[1]
                     next_heat_number = next_heat.heat_number
 
-                current_group = self.get_group_by_id(
-                    row["current_group_id"], active_pilots) if row["current_group_id"] else None
+                idx = row["current_group_index"]
+                current_group = groups[idx] if idx is not None and groups and idx < len(groups) else None
                 session = Session(
                     name=row['name'],
                     flight_duration_sec=row['flight_duration_sec'],
@@ -419,7 +419,8 @@ class RaceDatabase:
             if channels_map is not None and isinstance(channels_map, dict):
                 for channel in channels_map:
                     pilot_id = channels_map[channel]
-                    channels[channel] = active_pilots[pilot_id] if pilot_id in active_pilots else None
+                    if pilot_id in active_pilots:
+                        channels[channel] = active_pilots[pilot_id]
             return Group(
                 group_id=row['group_id'],  channels=channels, group_sequence=row['group_sequence'])
 
