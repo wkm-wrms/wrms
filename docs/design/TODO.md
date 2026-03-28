@@ -74,6 +74,7 @@ Na podstawie analizy plików `requirements.md` oraz `use cases.md` względem akt
 
 ## 6. Ideas / Future Improvements
 
+- **Database schema versioning**: Store the current schema version in a dedicated `schema_version` table. The application code declares its expected version. On startup, if the code version is higher than the DB version, apply numbered migration patches in sequence to bring the DB up to date. Every future structural change to the DB (new table, new column, index change) must be accompanied by: (1) updating the `CREATE TABLE` baseline, (2) writing a numbered patch (e.g. `migrations/002_add_risk_factor.sql`), (3) bumping the expected version constant in code.
 - **API method naming convention**: All methods in internal classes that are called by the API layer should be prefixed with `api_`. Their docstrings should fully describe accepted parameters and return values (type, shape, meaning).
 - **API error responses — no HTTP exceptions**: All API endpoints must return `{"status": "error", "message": "..."}` JSON instead of raising `HTTPException` (4xx/5xx). Async JS error handling in the browser is painful when the server raises HTTP-level errors. Every endpoint should always return 200 with a status field.
 - **Refactor/split database.py**: The class is large and hard to navigate. Analyse whether it can be split into cohesive submodules (e.g. `db_session.py`, `db_heat.py`, `db_pilot.py`, `db_group.py`) while keeping the public interface stable.
