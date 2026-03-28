@@ -400,6 +400,60 @@
             transform: scale(0.95);
         }
 
+        /* Current heat — 4-slot pilot grid */
+        .heat-pilot-grid {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .heat-pilot-card {
+            flex: 1 1 0;
+            min-width: 90px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #dee2e6;
+            background: #fff;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .heat-ch-header {
+            padding: 4px 8px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .heat-ch-analog { background: #fff3cd; color: #856404; }
+        .heat-ch-digital { background: #cfe2ff; color: #084298; }
+
+        .heat-pilot-body {
+            padding: 6px 8px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .heat-pilot-name {
+            font-weight: 700;
+            font-size: 1em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .heat-empty-name {
+            color: #adb5bd;
+            font-style: italic;
+            font-size: 0.9em;
+        }
+
         .pilot-slot {
             transition: background-color 0.2s;
             min-width: 120px;
@@ -734,7 +788,7 @@
                 <div class="grid">
                     <div class="card" style="margin:0; border:1px solid #eee;">
                         <h3>Aktualny Bieg</h3>
-                        <div id="currentHeatDisplay">Grupa 1 - Oczekiwanie na start</div>
+                        <div id="currentHeatDisplay" class="heat-pilot-grid"></div>
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 10px;">
                         <button id="btnPause" class="btn btn-warning" onclick="pauseSession()">PAUZA</button>
@@ -1236,7 +1290,7 @@
             const statusEl = document.getElementById('currentHeatDisplay');
 
             if (response.status !== "ok" || !response.heat) {
-                statusEl.innerText = response.message || "SESJA WSTRZYMANA";
+                statusEl.innerHTML = `<span style="color:#6c757d;font-style:italic">${response.message || "SESJA WSTRZYMANA"}</span>`;
                 timerEl.innerText = "PAUZA";
                 timerEl.classList.remove('timer-low');
                 timerRunning = false;
@@ -1251,7 +1305,6 @@
             }
 
             const heat = response.heat;
-            statusEl.innerText = "";
 
             if (currenHeatNumber !== heat.heat_number) {
                 currenHeatNumber = heat.heat_number;
@@ -1268,20 +1321,34 @@
             document.getElementById('btnPause').style.display  = isPaused ? 'none' : '';
             document.getElementById('btnResume').style.display = isPaused ? ''     : 'none';
             const CHANNELS = ["R1", "R3", "R6", "R7"];
+            const CH_FREQ  = { R1: "5658", R3: "5732", R6: "5843", R7: "5880" };
+            const CH_TYPE  = { R1: "analog", R3: "analog", R6: "digital", R7: "digital" };
+            const VTX_CLASS = { Analog: "vtx-analog", DJI: "vtx-dji", HDZero: "vtx-hd0", Walksnail: "vtx-dji" };
+
             // Timer Logic
             if (heat.live_seconds_left !== null) {
                 const secs = heat.live_seconds_left;
                 currentTimerEnds = Date.now() + secs * 1000;
             }
-            // Current pilots Grid Logic
-            CHANNELS.forEach(ch => {
+
+            // Current pilots grid — 4 channel cards
+            statusEl.innerHTML = CHANNELS.map(ch => {
                 const pilot = heat.channels[ch];
+                const isDigital = pilot ? pilot.is_digital : (CH_TYPE[ch] === "digital");
+                const chClass = isDigital ? "heat-ch-digital" : "heat-ch-analog";
+                const header = `<div class="heat-ch-header ${chClass}"><span>${ch}</span><span>${CH_FREQ[ch]}</span></div>`;
                 if (pilot) {
-                    statusEl.innerText += pilot.pilot.name + " (" + ch + ") | ";
+                    const vtxCls = VTX_CLASS[pilot.vtx] || "vtx-tag";
+                    const body = `<div class="heat-pilot-body">
+                        <div class="heat-pilot-name">${pilot.pilot.name}</div>
+                        <span class="vtx-tag ${vtxCls}">${pilot.vtx}</span>
+                    </div>`;
+                    return `<div class="heat-pilot-card">${header}${body}</div>`;
                 } else {
-                    statusEl.innerText += " ---- (" + ch + ") | ";
+                    const body = `<div class="heat-pilot-body"><div class="heat-empty-name">—</div></div>`;
+                    return `<div class="heat-pilot-card">${header}${body}</div>`;
                 }
-            });
+            }).join('');
 
             const next_heat = response.next_heat;
             const container = document.getElementById('next-pilots-list');
