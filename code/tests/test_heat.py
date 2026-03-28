@@ -145,7 +145,8 @@ class TestHeatRotation:
 
     def test_skip_without_active_session_returns_error(self):
         resp = client.post("/api/session/skip_heat")
-        assert resp.status_code == 400
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "error"
 
     def test_next_heat_advances_after_skip(self, started_session):
         next_before = client.get("/api/heat").json()["next_heat"]["heat_number"]

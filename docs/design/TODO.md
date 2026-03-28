@@ -71,12 +71,14 @@ Na podstawie analizy plików `requirements.md` oraz `use cases.md` względem akt
 | 2026-03-28 | Fixed database.py bug: get_group_by_id skips None-mapped channels (prevents ValidationError) |
 | 2026-03-28 | Fixed database.py bug: get_session_by_id uses current_group_index not current_group_id (AUTOINCREMENT mismatch) |
 | 2026-03-28 | Cleaned production DB: removed 493 test pilots and 203 test sessions (id>=13, date>=2026-03-28) |
+| 2026-03-28 | Refactor: removed Group.group_id, unified group identity on group_sequence; renamed Heat.group_id → group_sequence; added idempotent ALTER TABLE migrations for existing DBs |
+| 2026-03-28 | API error responses: replaced all HTTPException raises with {"status": "error", ...} JSON; removed HTTPException import from pilot_api and session_api; updated all affected tests |
 
 ## 6. Ideas / Future Improvements
 
 - **Database schema versioning**: Store the current schema version in a dedicated `schema_version` table. The application code declares its expected version. On startup, if the code version is higher than the DB version, apply numbered migration patches in sequence to bring the DB up to date. Every future structural change to the DB (new table, new column, index change) must be accompanied by: (1) updating the `CREATE TABLE` baseline, (2) writing a numbered patch (e.g. `migrations/002_add_risk_factor.sql`), (3) bumping the expected version constant in code.
 - **API method naming convention**: All methods in internal classes that are called by the API layer should be prefixed with `api_`. Their docstrings should fully describe accepted parameters and return values (type, shape, meaning).
-- **API error responses — no HTTP exceptions**: All API endpoints must return `{"status": "error", "message": "..."}` JSON instead of raising `HTTPException` (4xx/5xx). Async JS error handling in the browser is painful when the server raises HTTP-level errors. Every endpoint should always return 200 with a status field.
+- ~~**API error responses — no HTTP exceptions**~~ *(done 2026-03-28)*
 - **Refactor/split database.py**: The class is large and hard to navigate. Analyse whether it can be split into cohesive submodules (e.g. `db_session.py`, `db_heat.py`, `db_pilot.py`, `db_group.py`) while keeping the public interface stable.
 - **HTML refactoring — shared timer logic and consistent DOM naming**: Extract all timer logic into a single shared `timer.js`. Ensure all DOM element IDs follow the same naming convention in both the admin panel and the dashboard. Move visual/styling differences to separate CSS files (`timer.css` for the dashboard, `timer-admin.css` for the admin panel).
 - **Code language audit**: Review all code comments and program messages — should be in English (currently mixed Polish/English). See section 1 discrepancies for context.
@@ -85,9 +87,8 @@ Na podstawie analizy plików `requirements.md` oraz `use cases.md` względem akt
 - **Pause/resume**: Implement the 501-returning pause/resume endpoints (session_api.py)
 - **Automatic rebalance after pilot removal**: Currently requires manual `/rebalance` call
 - **5th pilot Low Band rule**: Full Low Band channel (LB) support in matchmaking
+- **Fix audio autoplay in browser**: Browsers block `audio.play()` until the user has interacted with the page (autoplay policy). A one-time interaction (e.g. a "Start Audio" button that plays a silent sound) is enough to unlock audio for the entire session — no repeat interaction needed every 10 minutes. The unlock only resets if the page is reloaded. Implement this button on the dashboard before the session goes live.
 - **`is_active` flag semantics**: `session.stop()` sets `current_phase='FINISHED'` but leaves `is_active=True`; consider aligning or documenting
-- **`current_group_id` in session table**: Stores the in-memory `group_id` (sequential 1,2,3) but `session_group.group_id` is AUTOINCREMENT — they never match. The column is effectively unused. Fix: either sync `Group.group_id` with DB AUTOINCREMENT after each `update_groups()`, or drop the column and always resolve current group via `current_group_index` (current approach after 2026-03-28 fix).
-- **Refactor: remove `group_id` from `Group` model** — `group_id` and `group_sequence` are always equal in memory (both set to `i+1`). `group_id` only diverges when loading from DB (gets AUTOINCREMENT value). Proposed change: remove `Group.group_id`, use `group_sequence` as sole in-memory identifier; rename `Heat.group_id` → `Heat.group_sequence`; rename `session.current_group_id` → `session.current_group_sequence` in DB. DB AUTOINCREMENT `session_group.group_id` stays as internal DB key.
 
 ---
 *Updated: 2026-03-28*

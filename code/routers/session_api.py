@@ -1,7 +1,7 @@
 """
 API module for managing training sessions.
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel
 
 from database import get_db
@@ -28,14 +28,11 @@ async def create_session(data: SessionStart):
     Creates a new session and persists it in the database.
     """
     if not data.name or len(data.name.strip()) == 0:
-        raise HTTPException(
-            status_code=400, detail="Session name cannot be empty.")
+        return {"status": "error", "message": "Session name cannot be empty."}
     if data.flight_duration_sec <= 0:
-        raise HTTPException(
-            status_code=400, detail="Flight duration must be greater than 0.")
+        return {"status": "error", "message": "Flight duration must be greater than 0."}
     if data.prep_duration_sec <= 0:
-        raise HTTPException(
-            status_code=400, detail="Preparation time must be greater than 0.")
+        return {"status": "error", "message": "Preparation time must be greater than 0."}
 
     session = Session(
         name=data.name,
@@ -52,8 +49,8 @@ async def get_active_session():
     """Returns data for the currently active session."""
     session = get_session()
     if session is None:
-        raise HTTPException(
-            status_code=400, detail="No session found. Please define session parameters first.")
+        return {"status": "error",
+                "message": "No session found. Please define session parameters first."}
     return {"status": "ok", "session": session}
 
 
@@ -62,8 +59,7 @@ async def get_session_groups_list():
     """Returns the list of groups in the active session roster."""
     session = get_session()
     if session is None:
-        raise HTTPException(
-            status_code=400, detail="No active session found.")
+        return {"status": "error", "message": "No active session found."}
     return {"status": "ok", "groups": session.groups}
 
 
@@ -72,8 +68,7 @@ async def get_session_by_id(session_id: str):
     """Retrieves a historical session from the database by ID."""
     session = db.get_session_by_id(session_id)
     if session is None:
-        raise HTTPException(
-            status_code=400, detail="Session not found.")
+        return {"status": "error", "message": "Session not found."}
     return {"status": "ok", "session": session}
 
 
@@ -119,15 +114,13 @@ async def stop_session():
 @router.post("/pause")
 async def pause_timer():
     """Pauses the timer (TBD)."""
-    raise HTTPException(
-        status_code=501, detail="Pause functionality is not yet implemented.")
+    return {"status": "error", "message": "Pause functionality is not yet implemented."}
 
 
 @router.post("/resume")
 async def resume_timer():
     """Resumes the timer (TBD)."""
-    raise HTTPException(
-        status_code=501, detail="Resume functionality is not yet implemented.")
+    return {"status": "error", "message": "Resume functionality is not yet implemented."}
 
 
 @router.post("/skip_heat")
@@ -135,8 +128,7 @@ async def skip_heat():
     """Skips the current heat and shifts to the next group in rotation."""
     session = get_session()
     if session is None or not session.is_session_active():
-        raise HTTPException(
-            status_code=400, detail="No active session found.")
+        return {"status": "error", "message": "No active session found."}
 
     try:
         session.skip_current_heat()
@@ -152,7 +144,7 @@ async def skip_heat():
             archived = session.pop_archived_heat()
 
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        return {"status": "error", "message": str(e)}
 
     return {"status": "ok", "message": "Heat skipped, preparing next group."}
 
@@ -175,7 +167,7 @@ async def session_add_pilot(pilot_add: PilotAdd):
     """Adds a pilot to the active session and triggers matchmaking (Req 3.2)."""
     session = get_session()
     if session is None:
-        raise HTTPException(status_code=400, detail="No active session.")
+        return {"status": "error", "message": "No active session."}
     pilot: Pilot = db.get_pilot_by_id(pilot_add.pilot_id)
     try:
         session.add_pilot(pilot, pilot_add.vtx)
@@ -197,7 +189,7 @@ async def session_remove_pilot(pilot_remove: PilotRemove):
     """Removes a pilot from the session and triggers matchmaking rebalance."""
     session = get_session()
     if session is None:
-        raise HTTPException(status_code=400, detail="No active session.")
+        return {"status": "error", "message": "No active session."}
     session.remove_pilot(pilot_remove.pilot_id)
     db.session_remove_pilot(session.session_id, pilot_remove.pilot_id)
     db.save_session_data(session)

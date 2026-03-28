@@ -119,6 +119,21 @@ data/
 
 ---
 
+## API conventions
+
+- All endpoints return HTTP 200 with `{"status": "ok", ...}` or `{"status": "error", "message": "..."}`. No `HTTPException` is raised anywhere.
+- Frontend JS always checks `data.status === "error"` and calls `alert()`. Network failures are caught with try/catch and also alert.
+- `dashboard.html` is a public kiosk — handles errors silently (shows "SESJA WSTRZYMANA"), no alerts by design.
+
+## Model conventions
+
+- `Group` has a single in-memory identifier: `group_sequence` (1-based). `group_id` was removed (2026-03-28).
+- `Heat.group_sequence` stores the source group's display position — not a DB AUTOINCREMENT key.
+- `session_group.group_id` in DB is an AUTOINCREMENT internal PK — never surfaces in Python models.
+- `session.current_group_sequence` replaced `current_group_id` in the `session` table; current group is resolved via `current_group_index` (0-based index into the `groups` list).
+
+---
+
 ## Fixed Bugs (history)
 
 | Bug | Location | Fix |

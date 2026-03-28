@@ -37,23 +37,27 @@ class TestSessionCreate:
         resp = client.post("/api/session", json={
             "name": "   ", "flight_duration_sec": 60, "prep_duration_sec": 30
         })
-        assert resp.status_code == 400
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "error"
 
     def test_create_session_zero_flight_duration_returns_error(self):
         resp = client.post("/api/session", json={
             "name": "Bad", "flight_duration_sec": 0, "prep_duration_sec": 30
         })
-        assert resp.status_code == 400
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "error"
 
     def test_create_session_negative_prep_duration_returns_error(self):
         resp = client.post("/api/session", json={
             "name": "Bad", "flight_duration_sec": 60, "prep_duration_sec": -1
         })
-        assert resp.status_code == 400
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "error"
 
     def test_get_session_without_creating_returns_error(self):
         resp = client.get("/api/session")
-        assert resp.status_code == 400
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "error"
 
 
 class TestSessionStart:
@@ -111,7 +115,8 @@ class TestSessionStop:
     def test_stop_clears_global_session(self, started_session):
         client.post("/api/session/stop")
         resp = client.get("/api/session")
-        assert resp.status_code == 400
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "error"
 
     def test_stop_without_session_returns_error(self):
         resp = client.post("/api/session/stop")
@@ -170,4 +175,5 @@ class TestSessionPilotManagement:
     def test_add_pilot_without_session_returns_error(self, make_pilot):
         pid, _ = make_pilot()
         resp = client.post("/api/session/add_pilot", json={"pilot_id": pid, "vtx": "Analog"})
-        assert resp.status_code == 400
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "error"

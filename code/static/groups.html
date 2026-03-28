@@ -272,6 +272,7 @@
                     alert(data.message || "Błąd przenoszenia");
                 }
             } catch (err) {
+                alert("Błąd sieci: " + err.message);
                 console.error("Błąd sieci:", err);
             }
         }
@@ -382,6 +383,7 @@
                     }
 
                 } catch (err) {
+                    alert("Błąd sieci: " + err.message);
                     console.error("Błąd sieci:", err);
                 }
             }
@@ -406,6 +408,7 @@
                 }
 
             } catch (err) {
+                alert("Błąd sieci: " + err.message);
                 console.error("Błąd sieci:", err);
             }
         }

@@ -50,9 +50,10 @@ class TestPilotGet:
         assert data["pilot_id"] == pid
         assert data["name"] == name
 
-    def test_get_pilot_not_found_returns_404(self):
+    def test_get_pilot_not_found_returns_error(self):
         resp = client.get("/api/pilot/9999999")
-        assert resp.status_code == 404
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "error"
 
     def test_get_all_pilots_returns_list(self, make_pilot):
         make_pilot()

@@ -659,28 +659,32 @@
                 prep_duration_sec: document.getElementById('prepTime').value
             };
             try {
-                await fetch('/api/session', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                const res = await fetch('/api/session', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                const data = await res.json();
+                if (data.status === "error") {
+                    alert("Błąd: " + data.message);
+                    return;
+                }
             } catch (err) {
-                alert("Błąd: " + err.message);
+                alert("Błąd sieci: " + err.message);
                 console.error(err);
-                return null;
+                return;
             }
             updateUI();
         }
 
         async function startSession() {
-
-            let res = await fetch('/api/session/start', { method: 'POST' });
-            if (res.status !== 200) {
-                alert("Błąd: " + err.message);
+            try {
+                const res = await fetch('/api/session/start', { method: 'POST' });
+                const data = await res.json();
+                if (data.status === "error") {
+                    alert("Błąd: " + data.message);
+                    return;
+                }
+            } catch (err) {
+                alert("Błąd sieci: " + err.message);
                 console.error(err);
-                return null;
-            }
-            const data = await res.json();
-            if (data.status == "error") {
-                alert("Błąd: " + data.message);
-                console.error(data.message);
-                return null;
+                return;
             }
             updateUI();
             startTimer();
@@ -702,23 +706,53 @@
         }
 
         async function pauseSession() {
-            const res = await fetch('/api/session/pause', { method: 'POST' });
-            const data = await res.json();
+            try {
+                const res = await fetch('/api/session/pause', { method: 'POST' });
+                const data = await res.json();
+                if (data.status === "error") {
+                    alert("Błąd: " + data.message);
+                    return;
+                }
+            } catch (err) {
+                alert("Błąd sieci: " + err.message);
+                console.error(err);
+                return;
+            }
             stopTimer();
         }
 
         async function nextHeat() {
             if (confirm("Czy na pewno chcesz pominąć obecną fazę i przejść dalej?")) {
-                await fetch('/api/session/skip_heat', { method: 'POST' });
+                try {
+                    const res = await fetch('/api/session/skip_heat', { method: 'POST' });
+                    const data = await res.json();
+                    if (data.status === "error") {
+                        alert("Błąd: " + data.message);
+                        return;
+                    }
+                } catch (err) {
+                    alert("Błąd sieci: " + err.message);
+                    console.error(err);
+                    return;
+                }
                 updateUI();
             }
         }
 
         async function resumeSession() {
-            const res = await fetch('/api/session/resume', { method: 'POST' });
-            const data = await res.json();
+            try {
+                const res = await fetch('/api/session/resume', { method: 'POST' });
+                const data = await res.json();
+                if (data.status === "error") {
+                    alert("Błąd: " + data.message);
+                    return;
+                }
+            } catch (err) {
+                alert("Błąd sieci: " + err.message);
+                console.error(err);
+                return;
+            }
             startTimer();
-
         }
 
         // --- Zarządzanie Pilotami ---
@@ -785,12 +819,16 @@
 
         async function removePilot(id) {
             try {
-                await fetch(`/api/session/remove_pilot`, { method: 'POST', body: JSON.stringify({ pilot_id: id }), headers: { 'Content-Type': 'application/json' } });
-                loadSessionData();
+                const res = await fetch(`/api/session/remove_pilot`, { method: 'POST', body: JSON.stringify({ pilot_id: id }), headers: { 'Content-Type': 'application/json' } });
+                const data = await res.json();
+                if (data.status === "error") {
+                    alert("Błąd: " + data.message);
+                    return;
+                }
             } catch (err) {
-                alert("Błąd: " + err.message);
+                alert("Błąd sieci: " + err.message);
                 console.error(err);
-                return null;
+                return;
             }
             loadSessionData();
             searchPilots();
@@ -804,6 +842,9 @@
             try {
                 const resP = await fetch('/api/session');
                 const dataP = await resP.json();
+                if (dataP.status === "error") {
+                    return;
+                }
                 html = '';
 
                 activePilots = {};

@@ -170,10 +170,12 @@ class TestFinishedHeatPersistence:
 class TestStopSession:
 
     def test_stop_clears_in_memory_session(self):
-        """Po stop() GET /api/session zwraca 400 (brak sesji w pamięci)."""
+        """Po stop() GET /api/session zwraca error (brak sesji w pamięci)."""
         _start_2s_session()
         client.post("/api/session/stop")
-        assert client.get("/api/session").status_code == 400
+        resp = client.get("/api/session")
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "error"
 
     def test_stop_clears_active_heat(self):
         """Po stop() GET /api/heat zwraca status error."""

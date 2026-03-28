@@ -167,7 +167,7 @@ class TestUC4_SessionEnd:
     def test_stop_session_clears_active_state(self, started_session):
         """UC4: Po zatrzymaniu sesja jest nieaktywna i brak aktywnego biegu."""
         client.post("/api/session/stop")
-        assert client.get("/api/session").status_code == 400
+        assert client.get("/api/session").json()["status"] == "error"
         assert client.get("/api/heat").json()["status"] == "error"
 
     def test_new_session_can_be_created_after_stop(self, started_session):

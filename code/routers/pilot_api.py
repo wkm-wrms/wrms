@@ -10,7 +10,7 @@ Endpoints:
 The module uses a database connection to perform CRUD operations on pilot records.
 """
 from pydantic import BaseModel
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
 from database import get_db
 
@@ -30,8 +30,8 @@ class PilotCreate(BaseModel):
 
 @router.get("/")
 async def get_all_pilots():
-    """ 
-    Fetch all pilots from the database. 
+    """
+    Fetch all pilots from the database.
     Returns an empty list if no pilots are found.
     """
     pilots = db.search_pilots("")
@@ -40,8 +40,8 @@ async def get_all_pilots():
 
 @router.post("/")
 async def create_pilot(data: PilotCreate):
-    """ 
-    Add a new pilot to the database. 
+    """
+    Add a new pilot to the database.
     Returns an error if the pilot already exists or the name is empty.
     """
     try:
@@ -54,20 +54,20 @@ async def create_pilot(data: PilotCreate):
 
 @router.get("/{pilot_id}")
 async def get_pilot(pilot_id: int):
-    """ 
+    """
     Fetch a specific pilot by ID.
-    Raises 404 if the pilot is not found.
+    Returns an error if the pilot is not found.
     """
     pilot = db.get_pilot_by_id(pilot_id)
     if not pilot:
-        raise HTTPException(status_code=404, detail="Pilot does not exist.")
+        return {"status": "error", "message": "Pilot does not exist."}
     return {"status": "ok", "pilot": pilot}
 
 
 @router.get("/search/{query}")
 async def search_pilots(query: str):
-    """ 
-    Search for pilots by name. 
+    """
+    Search for pilots by name.
     Returns a list of pilots whose name contains the query string (case-insensitive).
     """
     pilots = db.search_pilots(query)
