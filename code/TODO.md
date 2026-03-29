@@ -1,4 +1,3 @@
-# Rzeczy, ktory brakue aktualnie w module zarzadzania sesjami treningowymi, wishlisty itp 
 
 * przy tworzeniu heatow, pomijamy puste grupy 
 
@@ -15,9 +14,3 @@
 
 * zrefactorowac mechanizm grup, zamienic go na mechanizm roster - wszystko w jednym miejscu 
 
-* Obsluga bledow HTTP - przejsc z miodelu zucania wyjatkow na zwracanie status="error" messge="Blad...."
-
-* mechanizm pauzy i przywrocenia treningu 
-* mechanizm przeskoku do nastenej grupy 
-
-* zrobic ladne pokazywanie aktualnego i nastepnego heatu na ekranie administratora
