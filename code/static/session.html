@@ -1145,6 +1145,7 @@
                                     <option value="Analog">Analog</option>
                                     <option value="HD0">HD0</option>
                                     <option value="DJI">DJI</option>
+                                    <option value="Walksnail">Walksnail</option>
                                 </select>
                                 <button class="btn btn-primary btn-sm" onclick="addPilot(${pilot.pilot_id})">+</button>
                             </div>
@@ -1344,7 +1345,7 @@
             const CHANNELS = ["R1", "R3", "R6", "R7"];
             const CH_FREQ  = { R1: "5658", R3: "5732", R6: "5843", R7: "5880" };
             const CH_TYPE  = { R1: "analog", R3: "analog", R6: "digital", R7: "digital" };
-            const VTX_CLASS = { Analog: "vtx-analog", DJI: "vtx-dji", HDZero: "vtx-hd0", Walksnail: "vtx-dji" };
+            const VTX_CLASS = { Analog: "vtx-analog", DJI: "vtx-dji", HD0: "vtx-hd0", Walksnail: "vtx-dji" };
 
             // Timer Logic
             if (heat.live_seconds_left !== null) {

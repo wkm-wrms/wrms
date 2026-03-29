@@ -48,7 +48,7 @@ Na podstawie analizy plików `requirements.md` oraz `use cases.md` względem akt
 
 ### Faza 2: Logika Wyścigowa (Priorytet: Wysoki)
 1. ~~**Rozszerzenie modelu Pilota**: `risk_factor` i `vision_system`.~~ *(done 2026-03-29 — risk_factor + notes; vision_system celowo w ActivePilot)*
-2. **Matchmaking 2.0**: Implementacja pełnego algorytmu wagowego (Vision + Risk) oraz obsługi Low Band jako 5. zawodnika.
+2. ~~**Matchmaking 2.0**: Implementacja pełnego algorytmu wagowego (Vision + Risk) oraz obsługi Low Band jako 5. zawodnika.~~ *(done 2026-03-29 — digital-first grouping + score-based channel assignment; Low Band odłożony świadomie)*
 3. **Statusy**: Obsługa statusu "Zapauzowany" dla uczestnictwa w sesji.
 
 ### Faza 3: Automatyzacja i Multimedia (Priorytet: Średni)
@@ -78,6 +78,7 @@ Na podstawie analizy plików `requirements.md` oraz `use cases.md` względem akt
 | 2026-03-28 | Pause/resume: full implementation — heat.pause()/resume() for PREP and FLIGHT phases, session-level pause/resume, DB persistence (phase_before_pause column), correct timer arithmetic on resume, frontend timer freeze/resume (session.html + dashboard.html), session-status badge updates, 30 new tests in test_pause_resume.py |
 | 2026-03-29 | Admin panel: current heat pilot grid — 4 channel cards with nick, VTX badge, channel frequency; header color based on is_digital flag |
 | 2026-03-29 | Pilot management: risk_factor (1–6) + notes fields on Pilot model; PUT /api/pilot/{id} + DELETE /api/pilot/{id} (admin auth, active-session guard); pilots.html self-contained manager (search, add, edit with risk slider, delete); modal iframe in session.html; START button disabled when session running; 21 new tests in test_pilots_extended.py |
+| 2026-03-29 | Matchmaking 2.0: digital-first grouping (digital pilots fill early groups); score-based channel assignment (vision_points(vtx) + risk_factor → higher score → higher channel); VTX_POINTS table + total_score() in ActivePilot; Walksnail added to UI select; HD0 key fixed in VTX_CLASS; 25 new tests in test_matchmaking_v2.py |
 
 ## 6. Ideas / Future Improvements
 

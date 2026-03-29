@@ -527,12 +527,14 @@ class Session(BaseModel):  # pylint: disable=too-many-instance-attributes
         """
         Partition active pilots into balanced groups and assign channels.
 
-        Algorithm:
+        Algorithm (Matchmaking 2.0):
           1. Compute number of groups: ceil(n / MAX_PILOTS_PER_GROUP).
-          2. Distribute pilots as evenly as possible (floor+1 for early groups).
-          3. Within each group assign digital pilots to high channels (R7, R6)
-             and analog pilots to low channels (R1, R3), both in descending/
-             ascending order respectively.
+          2. Sort all pilots digital-first (then by score desc) so early groups
+             fill with digital pilots, maximising homogeneous groups.
+          3. Distribute pilots as evenly as possible (floor+1 for early groups).
+          4. Within each group assign digital pilots to high channels (R7, R6, …)
+             and analog pilots to low channels (R1, R3, …), each tier sorted by
+             total_score() descending so higher score → higher channel number.
 
         Result is stored in self.groups; _dirty_list['groups'] is set so the
         caller knows to persist.
@@ -545,25 +547,41 @@ class Session(BaseModel):  # pylint: disable=too-many-instance-attributes
         num_groups = math.ceil(total_pilots / MAX_PILOTS_PER_GROUP)
         base_size = total_pilots // num_groups
         remainder = total_pilots % num_groups  # first `remainder` groups get +1 pilot
+
+        # Phase 2: digital-first, then by score descending within each cohort.
+        active_pilots_array = sorted(
+            self.active_pilots.values(),
+            key=lambda p: (0 if p.is_digital else 1, -p.total_score())
+        )
+
         self.groups = []
         pilot_index = 0
 
         for i in range(num_groups):
             current_group_size = base_size + 1 if i < remainder else base_size
-            active_pilots_array = list(self.active_pilots.values())
             group_pilots = active_pilots_array[pilot_index: pilot_index + current_group_size]
 
             channels: dict[str, ActivePilot] = {}
             analog_idx = 0
             digital_idx = len(ALLOWED_CHANNELS) - 1
 
-            # Digital pilots → high channels (R7, R6, …)
-            for pilot in [p for p in group_pilots if p.is_digital]:
+            # Phase 4: digital pilots → high channels, sorted by score desc.
+            digital_sorted = sorted(
+                [p for p in group_pilots if p.is_digital],
+                key=lambda p: p.total_score(), reverse=True
+            )
+            for pilot in digital_sorted:
                 channels[ALLOWED_CHANNELS[digital_idx]] = pilot
                 digital_idx -= 1
 
-            # Analog pilots → low channels (R1, R3, …)
-            for pilot in [p for p in group_pilots if not p.is_digital]:
+            # Phase 4: analog pilots → low channels, sorted by score asc.
+            # Ascending order means lowest score fills R1, highest score fills
+            # the highest available channel (R3 in mixed groups, R7 in all-analog).
+            analog_sorted = sorted(
+                [p for p in group_pilots if not p.is_digital],
+                key=lambda p: p.total_score()
+            )
+            for pilot in analog_sorted:
                 channels[ALLOWED_CHANNELS[analog_idx]] = pilot
                 analog_idx += 1
 
