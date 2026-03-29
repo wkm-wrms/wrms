@@ -175,6 +175,38 @@ async def get_all_sessions():
     return {"status": "ok", "sessions": sessions}
 
 
+class SessionParamsUpdate(BaseModel):
+    """Schema for updating session timing parameters mid-session."""
+    flight_duration_sec: int
+    prep_duration_sec: int
+
+
+@router.post("/update_params")
+async def update_session_params(data: SessionParamsUpdate, _: str = Depends(require_admin)):
+    """
+    Update flight and prep durations for the active session.
+
+    Changes take effect from the next heat. The currently running heat
+    is not affected.
+    """
+    session = get_session()
+    if session is None:
+        return {"status": "error", "message": "No active session."}
+    if data.flight_duration_sec <= 0:
+        return {"status": "error", "message": "Flight duration must be greater than 0."}
+    if data.prep_duration_sec <= 0:
+        return {"status": "error", "message": "Preparation time must be greater than 0."}
+    session.update_params(data.flight_duration_sec, data.prep_duration_sec)
+    db.save_session_data(session)
+    if session.next_heat is not None:
+        db.create_or_update_heat(session.next_heat, session.active_pilots)
+    return {
+        "status": "ok",
+        "flight_duration_sec": session.flight_duration_sec,
+        "prep_duration_sec": session.prep_duration_sec,
+    }
+
+
 class PilotAdd(BaseModel):
     """Schema for adding a pilot to the session."""
     pilot_id: int

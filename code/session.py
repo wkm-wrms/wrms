@@ -240,6 +240,25 @@ class Session(BaseModel):  # pylint: disable=too-many-instance-attributes
         self.current_heat.resume()
         self.current_phase = self.phase_before_pause or 'FLIGHT'
 
+    def update_params(self, flight_duration_sec: int, prep_duration_sec: int):
+        """
+        Update session timing parameters, effective from the next heat.
+
+        The currently running heat is unaffected. If a next_heat has already
+        been pre-created (PLANNED status), its timers are updated immediately
+        so it will use the new durations when it starts.
+
+        Args:
+            flight_duration_sec: New flight phase duration in seconds.
+            prep_duration_sec:   New preparation phase duration in seconds.
+        """
+        self.flight_duration_sec = flight_duration_sec
+        self.prep_duration_sec = prep_duration_sec
+        if self.next_heat is not None and self.next_heat.status == "PLANNED":
+            self.next_heat.flight_time = flight_duration_sec
+            self.next_heat.prep_time = prep_duration_sec
+        self._dirty_list["session"] = True
+
     # ------------------------------------------------------------------
     # Pilot management
     # ------------------------------------------------------------------

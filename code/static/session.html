@@ -774,11 +774,13 @@
                 <div class="grid">
                     <div class="form-group">
                         <label>Czas lotu (sekundy)</label>
-                        <input type="number" id="flightTime" value="600">
+                        <input type="number" id="flightTime" value="600" min="1">
+                        <small style="color:#888;display:block;margin-top:4px">Jak długo jedna grupa ma prawo latać. Domyślnie: 600 s (10 min).</small>
                     </div>
                     <div class="form-group">
-                        <label>Czas prep (sekundy)</label>
-                        <input type="number" id="prepTime" value="120">
+                        <label>Czas przerwy między grupami (sekundy)</label>
+                        <input type="number" id="prepTime" value="120" min="1">
+                        <small style="color:#888;display:block;margin-top:4px">Czas na wylądowanie i zmianę grupy na torze. Domyślnie: 120 s (2 min).</small>
                     </div>
                 </div>
                 <button class="btn btn-primary" onclick="createSession()">Utwórz Sesję</button>
@@ -796,6 +798,7 @@
                         <button id="btnResume" class="btn btn-success" onclick="resumeSession()"
                             style="display:none">WZNÓW</button>
                         <button class="btn btn-primary" onclick="nextHeat()">NASTĘPNY BIEG</button>
+                        <button class="btn btn-secondary" onclick="openParamsModal()">Zmień parametry</button>
                         <button class="btn btn-danger" onclick="terminateSession()">ZAKOŃCZ SESJĘ</button>
                     </div>
                 </div>
@@ -833,10 +836,10 @@
 
             </div>
 
-            <div style="margin-top: 30px; display: flex; gap: 10px;">
-
+            <div style="margin-top: 30px; display: flex; gap: 10px; flex-wrap: wrap;">
                 <button class="btn btn-primary" onclick="openGroupModal()"> Zarządzaj Grupami </button>
                 <button class="btn btn-warning" onclick="rebalanceGroups()">Rebalnsuj Grupy</button>
+                <button class="btn btn-secondary" onclick="openParamsModal()">Zmień parametry</button>
                 <button id="btnStartSession" class="btn btn-success" onclick="startSession()">START WYŚCIGÓW</button>
                 <button class="btn btn-danger" onclick="terminateSession()">ZAKOŃCZ SESJĘ</button>
             </div>
@@ -914,6 +917,33 @@
                     <div class="users-add-error" id="changePwError"></div>
                     <div class="users-add-ok" id="changePwOk"></div>
                     <button class="btn btn-primary" onclick="changeSelfPassword()">Zmień hasło</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Session params modal -->
+    <div id="params-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeParamsModal()">
+        <div class="modal-content" style="width:90%;max-width:480px;">
+            <div class="modal-header">
+                <h3>Zmień parametry sesji</h3>
+                <button class="btn btn-secondary btn-sm" onclick="closeParamsModal()">✕</button>
+            </div>
+            <div style="padding:20px;display:flex;flex-direction:column;gap:16px;">
+                <div class="form-group" style="margin:0">
+                    <label>Czas lotu (sekundy)</label>
+                    <input type="number" id="paramFlightTime" min="1" style="width:100%">
+                    <small style="color:#888;display:block;margin-top:4px">Jak długo jedna grupa ma prawo latać.</small>
+                </div>
+                <div class="form-group" style="margin:0">
+                    <label>Czas przerwy między grupami (sekundy)</label>
+                    <input type="number" id="paramPrepTime" min="1" style="width:100%">
+                    <small style="color:#888;display:block;margin-top:4px">Czas na wylądowanie i zmianę grupy na torze.</small>
+                </div>
+                <p style="color:#888;font-size:0.85rem;margin:0">Zmiana obowiązuje od następnego biegu. Aktualnie trwający bieg nie jest przerywany.</p>
+                <div style="display:flex;gap:8px;justify-content:flex-end;">
+                    <button class="btn btn-secondary" onclick="closeParamsModal()">Anuluj</button>
+                    <button class="btn btn-primary" onclick="saveSessionParams()">Zapisz</button>
                 </div>
             </div>
         </div>
@@ -1200,6 +1230,7 @@
         }
 
         let activePilots = null;
+        let currentSessionParams = { flight_duration_sec: 600, prep_duration_sec: 120 };
 
         async function loadSessionData() {
             // Tu wywołaj endpointy do pobierania listy pilotów w sesji i grup
@@ -1210,6 +1241,8 @@
                 if (dataP.status === "error") {
                     return;
                 }
+                currentSessionParams.flight_duration_sec = dataP.session.flight_duration_sec;
+                currentSessionParams.prep_duration_sec = dataP.session.prep_duration_sec;
                 html = '';
 
                 activePilots = {};
@@ -1521,6 +1554,35 @@
             document.getElementById('pilots-modal').style.display = 'none';
             document.getElementById('pilots-frame').src = '';
             searchPilots(); // refresh the add-to-session search list
+        }
+
+        function openParamsModal() {
+            document.getElementById('paramFlightTime').value = currentSessionParams.flight_duration_sec;
+            document.getElementById('paramPrepTime').value = currentSessionParams.prep_duration_sec;
+            document.getElementById('params-modal').style.display = 'flex';
+        }
+
+        function closeParamsModal() {
+            document.getElementById('params-modal').style.display = 'none';
+        }
+
+        async function saveSessionParams() {
+            const flight = parseInt(document.getElementById('paramFlightTime').value);
+            const prep   = parseInt(document.getElementById('paramPrepTime').value);
+            if (!flight || flight <= 0 || !prep || prep <= 0) {
+                alert("Oba parametry muszą być większe od zera.");
+                return;
+            }
+            const res = await apiFetch('/api/session/update_params', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ flight_duration_sec: flight, prep_duration_sec: prep }),
+            });
+            if (res) {
+                currentSessionParams.flight_duration_sec = res.flight_duration_sec;
+                currentSessionParams.prep_duration_sec   = res.prep_duration_sec;
+                closeParamsModal();
+            }
         }
 
         function openBackupModal() {
