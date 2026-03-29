@@ -760,6 +760,7 @@
         <!-- Admin bar: shown when logged in -->
         <div class="admin-bar" id="adminBar">
             <span id="adminUsername"></span>
+            <button class="btn btn-secondary btn-sm" onclick="openBackupModal()" style="margin-right:4px">Backup</button>
             <button class="btn btn-sm btn-primary" onclick="openUsersModal()">Administratorzy</button>
             <button class="btn btn-sm btn-warning" onclick="doLogout()">Wyloguj</button>
         </div>
@@ -1521,6 +1522,16 @@
             searchPilots(); // refresh the add-to-session search list
         }
 
+        function openBackupModal() {
+            document.getElementById('backup-frame').src = '/backup.html';
+            document.getElementById('backup-modal').style.display = 'flex';
+        }
+
+        function closeBackupModal() {
+            document.getElementById('backup-modal').style.display = 'none';
+            document.getElementById('backup-frame').src = '';
+        }
+
         function openGroupModal() {
             const modal = document.getElementById('groupModal');
             const frame = document.getElementById('groupFrame');
@@ -1875,6 +1886,17 @@
             if (authed) updateUI();
         };
     </script>
+
+        <!-- Backup/restore modal -->
+        <div id="backup-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeBackupModal()">
+            <div class="modal-box" style="width:520px;max-height:90vh;display:flex;flex-direction:column;">
+                <div class="modal-header">
+                    <h3>Backup i Przywracanie</h3>
+                    <button class="btn btn-secondary btn-sm" onclick="closeBackupModal()">✕</button>
+                </div>
+                <iframe id="backup-frame" src="" style="flex:1;border:none;border-radius:0 0 8px 8px;min-height:360px;"></iframe>
+            </div>
+        </div>
 </body>
 
 </html>

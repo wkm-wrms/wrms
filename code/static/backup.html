@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backup i Przywracanie</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: sans-serif; font-size: 14px; padding: 20px; background: #f8f9fa; color: #212529; }
+
+        .section { background: white; border-radius: 8px; border: 1px solid #dee2e6; padding: 18px; margin-bottom: 16px; }
+        .section h3 { font-size: 1em; margin-bottom: 6px; }
+        .section p { color: #6c757d; font-size: 13px; margin-bottom: 14px; }
+
+        .btn { padding: 8px 18px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; }
+        .btn-primary { background: #007bff; color: white; }
+        .btn-primary:hover:not(:disabled) { background: #0056b3; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-danger:hover:not(:disabled) { background: #a71d2a; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .warning-box { background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 10px 14px; margin-bottom: 14px; font-size: 13px; color: #856404; }
+        .file-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        input[type=file] { font-size: 13px; }
+
+        .msg { border-radius: 6px; padding: 10px 14px; font-size: 13px; margin-top: 12px; display: none; }
+        .msg-ok { background: #d1e7dd; color: #0f5132; border: 1px solid #badbcc; }
+        .msg-err { background: #f8d7da; color: #842029; border: 1px solid #f5c2c7; }
+        .msg-warn { background: #fff3cd; color: #856404; border: 1px solid #ffc107; }
+        .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #ccc; border-top-color: #555; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div class="section">
+    <h3>Kopia zapasowa</h3>
+    <p>Pobierz pełny dump bazy danych jako skompresowany plik <code>.sql.gz</code>. Nazwa pliku zawiera datę i godzinę wykonania.</p>
+    <a id="downloadLink" href="/api/backup/download" download>
+        <button id="btnDownload" class="btn btn-primary" onclick="onDownloadClick()">Pobierz backup</button>
+    </a>
+</div>
+
+<div class="section">
+    <h3>Przywróć z kopii zapasowej</h3>
+    <div class="warning-box">
+        ⚠️ Operacja nadpisze wszystkie bieżące dane. Zalecane jest wykonanie kopii zapasowej przed przywróceniem.
+    </div>
+    <div class="file-row">
+        <input type="file" id="restoreFile" accept=".sql.gz" onchange="onFileChange()">
+        <button id="btnRestore" class="btn btn-danger" onclick="doRestore()" disabled>Przywróć</button>
+    </div>
+    <div id="restoreMsg" class="msg"></div>
+</div>
+
+<script>
+    function onDownloadClick() {
+        const btn = document.getElementById('btnDownload');
+        btn.disabled = true;
+        btn.textContent = 'Generowanie...';
+        setTimeout(() => {
+            btn.disabled = false;
+            btn.textContent = 'Pobierz backup';
+        }, 2500);
+    }
+
+    function onFileChange() {
+        const f = document.getElementById('restoreFile').files[0];
+        document.getElementById('btnRestore').disabled = !f;
+        document.getElementById('restoreMsg').style.display = 'none';
+    }
+
+    function showMsg(type, html) {
+        const el = document.getElementById('restoreMsg');
+        el.className = 'msg msg-' + type;
+        el.innerHTML = html;
+        el.style.display = '';
+    }
+
+    async function doRestore() {
+        const file = document.getElementById('restoreFile').files[0];
+        if (!file) return;
+
+        if (!confirm(
+            'Przywrócić bazę danych z pliku "' + file.name + '"?\n\n' +
+            'UWAGA: Wszystkie bieżące dane zostaną zastąpione.\n' +
+            'Operacja jest nieodwracalna.'
+        )) return;
+
+        const btn = document.getElementById('btnRestore');
+        btn.disabled = true;
+        showMsg('', '<span class="spinner"></span>Trwa przywracanie...');
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const res = await fetch('/api/backup/restore', { method: 'POST', body: formData });
+            const data = await res.json();
+
+            if (data.status === 'ok') {
+                let msg = 'Baza danych przywrócona pomyślnie (schemat v' + data.backup_version + ').';
+                if (data.warning) {
+                    showMsg('warn', '⚠️ ' + msg + '<br>' + data.warning + '<br><br>Strona zostanie odświeżona za 4 sekundy...');
+                } else {
+                    showMsg('ok', '✓ ' + msg + '<br>Strona zostanie odświeżona za 3 sekundy...');
+                }
+                setTimeout(() => window.parent.location.reload(), data.warning ? 4000 : 3000);
+            } else {
+                showMsg('err', '✗ Błąd: ' + (data.message || 'Nieznany błąd.'));
+                btn.disabled = false;
+            }
+        } catch (e) {
+            showMsg('err', '✗ Błąd sieci: ' + e.message);
+            btn.disabled = false;
+        }
+    }
+</script>
+</body>
+</html>

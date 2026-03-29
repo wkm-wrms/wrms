@@ -20,6 +20,10 @@ from session import Session, ActivePilot
 from group import Group
 from heat import Heat
 
+# Increment this whenever the DB schema changes (new table, column, index).
+# Used by the backup/restore module to detect version mismatches.
+SCHEMA_VERSION = 2
+
 
 class RaceDatabase:
     """
@@ -852,8 +856,8 @@ class RaceDatabase:
         """
         Create a new DB-backed admin session and return the token.
 
-        Session expires after 24 hours. Old expired sessions for the same
-        user are pruned on creation.
+        Session does not expire. Old sessions for the same user are pruned
+        on creation to keep the table tidy.
 
         Args:
             username: The authenticated admin's username.
@@ -863,10 +867,10 @@ class RaceDatabase:
         """
         token = secrets.token_hex(32)
         now = datetime.now().timestamp()
-        expires_at = now + 86400  # 24 hours
+        expires_at = now + 60 * 60 * 24 * 365 * 100  # non-expiring (100 years)
         with self._get_conn() as conn:
-            # Prune expired sessions to keep the table tidy
-            conn.execute("DELETE FROM admin_session WHERE expires_at < ?", (now,))
+            # Prune old sessions for this user on new login
+            conn.execute("DELETE FROM admin_session WHERE username = ?", (username,))
             conn.execute(
                 "INSERT INTO admin_session (token, username, created_at, expires_at)"
                 " VALUES (?, ?, ?, ?)",
@@ -883,7 +887,7 @@ class RaceDatabase:
             token: The session cookie value to validate.
 
         Returns:
-            The admin username if the token is valid and not expired, else None.
+            The admin username if the token exists in the database, else None.
         """
         if not token:
             return None

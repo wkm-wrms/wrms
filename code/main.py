@@ -86,6 +86,12 @@ async def serve_pilots_manager():
     return FileResponse("static/pilots.html")
 
 
+@app.get("/backup.html")
+async def serve_backup_manager():
+    """Serves the backup/restore panel (loaded inside an iframe)."""
+    return FileResponse("static/backup.html")
+
+
 @app.get("/favicon.ico")
 async def serve_favicon():
     """Serves the site icon."""

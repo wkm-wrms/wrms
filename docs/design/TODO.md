@@ -13,7 +13,7 @@ Na podstawie analizy plików `requirements.md` oraz `use cases.md` względem akt
 | **Obsługa Błędów** | Ujednolicone komunikaty API | Rozbieżność między `HTTPException` a słownikami `{"status": "error"}` |
 
 ### 2.1 Modele Danych
-- [ ] **Pilot**: Dodanie pól `risk_factor` (1-6) oraz `vision_system` (mapowanie punktowe: Analog=1, DJI/WS=4, HDZero=5).
+- [x] **Pilot**: Dodanie pól `risk_factor` (1-6) i `notes`. (`vision_system`/`low_band` celowo pominięte — należą do ActivePilot, nie Pilot).
 - [ ] **Sesja**: Implementacja `qr_token` do generowania dynamicznych linków publicznych.
 - [ ] **Uczestnictwo**: Pełna obsługa statusu `Zapauzowany` dla pilota wewnątrz sesji.
 
@@ -47,7 +47,7 @@ Na podstawie analizy plików `requirements.md` oraz `use cases.md` względem akt
 3. **Synchronizacja czasu**: Zastąpienie SSE zoptymalizowanym pollingiem (krótki interwał dla aktywnego biegu).
 
 ### Faza 2: Logika Wyścigowa (Priorytet: Wysoki)
-1. **Rozszerzenie modelu Pilota**: `risk_factor` i `vision_system`.
+1. ~~**Rozszerzenie modelu Pilota**: `risk_factor` i `vision_system`.~~ *(done 2026-03-29 — risk_factor + notes; vision_system celowo w ActivePilot)*
 2. **Matchmaking 2.0**: Implementacja pełnego algorytmu wagowego (Vision + Risk) oraz obsługi Low Band jako 5. zawodnika.
 3. **Statusy**: Obsługa statusu "Zapauzowany" dla uczestnictwa w sesji.
 
@@ -76,6 +76,8 @@ Na podstawie analizy plików `requirements.md` oraz `use cases.md` względem akt
 | 2026-03-28 | Refactor: removed Group.group_id, unified group identity on group_sequence; renamed Heat.group_id → group_sequence; added idempotent ALTER TABLE migrations for existing DBs |
 | 2026-03-28 | API error responses: replaced all HTTPException raises with {"status": "error", ...} JSON; removed HTTPException import from pilot_api and session_api; updated all affected tests |
 | 2026-03-28 | Pause/resume: full implementation — heat.pause()/resume() for PREP and FLIGHT phases, session-level pause/resume, DB persistence (phase_before_pause column), correct timer arithmetic on resume, frontend timer freeze/resume (session.html + dashboard.html), session-status badge updates, 30 new tests in test_pause_resume.py |
+| 2026-03-29 | Admin panel: current heat pilot grid — 4 channel cards with nick, VTX badge, channel frequency; header color based on is_digital flag |
+| 2026-03-29 | Pilot management: risk_factor (1–6) + notes fields on Pilot model; PUT /api/pilot/{id} + DELETE /api/pilot/{id} (admin auth, active-session guard); pilots.html self-contained manager (search, add, edit with risk slider, delete); modal iframe in session.html; START button disabled when session running; 21 new tests in test_pilots_extended.py |
 
 ## 6. Ideas / Future Improvements
 
@@ -94,4 +96,4 @@ Na podstawie analizy plików `requirements.md` oraz `use cases.md` względem akt
 - **`is_active` flag semantics**: `session.stop()` sets `current_phase='FINISHED'` but leaves `is_active=True`; consider aligning or documenting
 
 ---
-*Updated: 2026-03-28 (pause/resume completed)*
+*Updated: 2026-03-29*
