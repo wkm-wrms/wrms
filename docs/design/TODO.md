@@ -30,7 +30,7 @@ Na podstawie analizy plików `requirements.md` oraz `use cases.md` względem akt
 
 ### 2.4 Interfejs Użytkownika (UI/UX)
 - [ ] **Dashboard**: Wyświetlanie kodu QR z dynamicznym linkiem.
-- [ ] **Dashboard**: Oznaczenie wizualne pilotów o statusie "Zapauzowany".
+- [x] **Dashboard**: Oznaczenie wizualne pilotów o statusie "Zapauzowany". *(pauzowani odfiltrowani z heat.channels — slot pusty)*
 - [x] **Panel Admina**: Implementacja "Pauzy" i "Wznowienia" timera.
 - [x] **Bezpieczeństwo**: Implementacja logowania (Authentication) do panelu `/admin`.
 - [ ] **Panel Admina**: Brak podglądu historii sesji i generowania raportów po zakończeniu.
