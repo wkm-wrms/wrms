@@ -705,7 +705,7 @@
 
             if (id === 'groupsModal' && iframe) {
                 // 1. Ustawiamy źródło dopiero teraz
-                iframe.src = "/static/groups_view.html";
+                iframe.src = `/static/groups_view.html?v=${Date.now()}`;
 
                 // 2. Czekamy, aż iframe się załaduje, zanim wyślemy sygnał odliczania
                 iframe.onload = () => {

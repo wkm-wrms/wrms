@@ -230,6 +230,43 @@ async def session_add_pilot(pilot_add: PilotAdd, _: str = Depends(require_admin)
     return {"status": "ok"}
 
 
+class PilotAction(BaseModel):
+    """Schema for pause/resume actions targeting a specific pilot."""
+    pilot_id: int
+
+
+@router.post("/pause_pilot")
+async def session_pause_pilot(data: PilotAction, _: str = Depends(require_admin)):
+    """Set a pilot's participation status to 'paused' (keeps group assignment)."""
+    session = get_session()
+    if session is None:
+        return {"status": "error", "message": "No active session."}
+    try:
+        session.pause_pilot(data.pilot_id)
+        db.update_pilot_status(session.session_id, data.pilot_id, "paused")
+        if session.next_heat is not None:
+            db.create_or_update_heat(session.next_heat, session.active_pilots)
+    except ValueError as e:
+        return {"status": "error", "message": str(e)}
+    return {"status": "ok"}
+
+
+@router.post("/resume_pilot")
+async def session_resume_pilot(data: PilotAction, _: str = Depends(require_admin)):
+    """Set a pilot's participation status back to 'active'."""
+    session = get_session()
+    if session is None:
+        return {"status": "error", "message": "No active session."}
+    try:
+        session.resume_pilot(data.pilot_id)
+        db.update_pilot_status(session.session_id, data.pilot_id, "active")
+        if session.next_heat is not None:
+            db.create_or_update_heat(session.next_heat, session.active_pilots)
+    except ValueError as e:
+        return {"status": "error", "message": str(e)}
+    return {"status": "ok"}
+
+
 class PilotRemove(BaseModel):
     """Schema for removing a pilot from the session."""
     pilot_id: int

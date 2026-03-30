@@ -43,7 +43,7 @@
             width: 100%;
             border-collapse: collapse;
             text-align: center;
-            font-size: clamp(1rem, 1.5vw, 3rem);
+            font-size: clamp(1rem, 1vw, 2rem);
 
         }
 
@@ -54,13 +54,14 @@
             font-weight: 600;
             text-transform: uppercase;
             font-size: 0.9rem;
-            border-bottom: 2px solid #333;
+            border-bottom: 2px solid #555;
             text-align: center;
         }
 
         td {
             padding: 10px 10px;
-            border-bottom: 1px solid #222;
+            border-bottom: 2px solid #666;
+
         }
 
         tr:hover {
@@ -86,10 +87,17 @@
         .pilot-name {
             display: block;
             font-weight: 500;
+            font-size: clamp(1rem, 1.5vw, 3rem);
+            margin: 0px;
+            padding: 0;
+        }
+
+        .pilot-card.small {
+            font-size: clamp(1rem, 0.9vw, 2rem);
         }
 
         .vtx-tag {
-            font-size: 0.75rem;
+            font-size: 0.5rem;
             color: var(--text-dim);
             text-transform: uppercase;
         }
@@ -97,6 +105,22 @@
         .empty-slot {
             color: #444;
             font-style: italic;
+        }
+
+        .pilot-paused .pilot-name {
+            text-decoration: line-through;
+            opacity: 0.6;
+        }
+
+        .badge-pilot-paused {
+            font-size: 0.65rem;
+            font-weight: 700;
+            background: #ffc107;
+            color: #333;
+            border-radius: 4px;
+            padding: 1px 5px;
+            white-space: nowrap;
+            margin-left: 4px;
         }
 
         /* Scrollbar styling */
@@ -186,8 +210,10 @@
 
                 function createPilotCard(pilot, groupSeq, channel) {
                     const div = document.createElement('div');
-                    div.className = `pilot-card`;
-                    div.innerHTML = `<strong>${pilot.pilot.name}</strong><br><small>${pilot.vtx}</small>`;
+                    const isPaused = pilot.status === 'paused';
+                    div.className = `pilot-card${isPaused ? ' pilot-paused' : ''}`;
+                    const pauseBadge = isPaused ? ' <span class="badge-pilot-paused">PAUZA</span>' : '';
+                    div.innerHTML = `<span class="pilot-name">${pilot.pilot.name}${pauseBadge}</span><br><small>${pilot.vtx}</small>`;
 
                     return div;
                 }

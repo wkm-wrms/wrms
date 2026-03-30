@@ -92,6 +92,27 @@
             transition: opacity 0.2s;
         }
 
+        .pilot-card.pilot-paused {
+            opacity: 0.55;
+            background: #f8f8f8;
+        }
+
+        .pilot-card.pilot-paused strong {
+            text-decoration: line-through;
+            color: #888;
+        }
+
+        .badge-pilot-paused {
+            font-size: 0.7rem;
+            font-weight: 700;
+            background: #ffc107;
+            color: #333;
+            border-radius: 4px;
+            padding: 1px 6px;
+            white-space: nowrap;
+            margin-left: 4px;
+        }
+
         .pilot-card:active {
             cursor: grabbing;
         }
@@ -340,9 +361,11 @@
 
         function createPilotCard(pilot, groupSeq, channel) {
             const div = document.createElement('div');
-            div.className = `pilot-card`;
+            const isPaused = pilot.status === 'paused';
+            div.className = `pilot-card${isPaused ? ' pilot-paused' : ''}`;
             div.draggable = true;
-            div.innerHTML = `<strong>${pilot.pilot.name}</strong><br><small>${pilot.vtx}</small>`;
+            const pauseBadge = isPaused ? ' <span class="badge-pilot-paused">PAUZA</span>' : '';
+            div.innerHTML = `<strong>${pilot.pilot.name}</strong>${pauseBadge}<br><small>${pilot.vtx}</small>`;
 
             div.ondragstart = (e) => handleDragStart(e, pilot.pilot_id, groupSeq, channel);
             div.ondragend = handleDragEnd;

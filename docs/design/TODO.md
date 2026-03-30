@@ -49,7 +49,7 @@ Na podstawie analizy plików `requirements.md` oraz `use cases.md` względem akt
 ### Faza 2: Logika Wyścigowa (Priorytet: Wysoki)
 1. ~~**Rozszerzenie modelu Pilota**: `risk_factor` i `vision_system`.~~ *(done 2026-03-29 — risk_factor + notes; vision_system celowo w ActivePilot)*
 2. ~~**Matchmaking 2.0**: Implementacja pełnego algorytmu wagowego (Vision + Risk) oraz obsługi Low Band jako 5. zawodnika.~~ *(done 2026-03-29 — digital-first grouping + score-based channel assignment; Low Band odłożony świadomie)*
-3. **Statusy**: Obsługa statusu "Zapauzowany" dla uczestnictwa w sesji.
+3. ~~**Statusy**: Obsługa statusu "Zapauzowany" dla uczestnictwa w sesji.~~ *(done 2026-03-30)*
 
 ### Faza 3: Automatyzacja i Multimedia (Priorytet: Średni)
 1. **Komunikaty TTS**: Implementacja wyczytywania nicków przez Web Speech API.
@@ -79,6 +79,9 @@ Na podstawie analizy plików `requirements.md` oraz `use cases.md` względem akt
 | 2026-03-29 | Admin panel: current heat pilot grid — 4 channel cards with nick, VTX badge, channel frequency; header color based on is_digital flag |
 | 2026-03-29 | Pilot management: risk_factor (1–6) + notes fields on Pilot model; PUT /api/pilot/{id} + DELETE /api/pilot/{id} (admin auth, active-session guard); pilots.html self-contained manager (search, add, edit with risk slider, delete); modal iframe in session.html; START button disabled when session running; 21 new tests in test_pilots_extended.py |
 | 2026-03-29 | Matchmaking 2.0: digital-first grouping (digital pilots fill early groups); score-based channel assignment (vision_points(vtx) + risk_factor → higher score → higher channel); VTX_POINTS table + total_score() in ActivePilot; Walksnail added to UI select; HD0 key fixed in VTX_CLASS; 25 new tests in test_matchmaking_v2.py |
+| 2026-03-30 | Session params mid-session update: POST /api/session/update_params; session.update_params() propagates to next_heat (PLANNED); current heat unaffected; descriptions + min=1 on create form; "Zmień parametry" button + inline modal in session.html; 11 new tests in test_session_params.py |
+| 2026-03-30 | Pilot pause/resume: status field on ActivePilot ('active'/'paused'); DB migration (active_pilot.status column); pause_pilot()/resume_pilot() on Session; POST /api/session/pause_pilot + resume_pilot; Pauza/Wznów buttons + visual badge in session.html; 17 new tests in test_pilot_pause.py |
+| 2026-03-30 | Paused pilot heat filtering: create_heat() skips paused pilots; pause_pilot() removes pilot from pre-created next_heat; resume_pilot() rebuilds next_heat; API endpoints persist next_heat after status change; PAUZA badge added to all group displays (session.html groups panel + heat cards, groups.html, groups_view.html); 20 new tests (total test_pilot_pause.py: 20 tests) |
 
 ## 6. Ideas / Future Improvements
 

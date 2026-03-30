@@ -266,6 +266,32 @@
             /* Nazwa pilota zajmie resztę miejsca */
         }
 
+        .item.pilot-paused,
+        .pilot-card.pilot-paused {
+            opacity: 0.55;
+            background: #f8f8f8;
+        }
+
+        .item.pilot-paused .pilot-name {
+            text-decoration: line-through;
+            color: #888;
+        }
+
+        .pilot-card.pilot-paused strong {
+            text-decoration: line-through;
+            color: #888;
+        }
+
+        .badge-pilot-paused {
+            font-size: 0.7rem;
+            font-weight: 700;
+            background: #ffc107;
+            color: #333;
+            border-radius: 4px;
+            padding: 1px 6px;
+            white-space: nowrap;
+        }
+
 
         .race-table {
             width: 100%;
@@ -1229,6 +1255,24 @@
             searchPilots();
         }
 
+        async function pausePilot(id) {
+            const res = await apiFetch('/api/session/pause_pilot', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pilot_id: id }),
+            });
+            if (res) loadSessionData();
+        }
+
+        async function resumePilot(id) {
+            const res = await apiFetch('/api/session/resume_pilot', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pilot_id: id }),
+            });
+            if (res) loadSessionData();
+        }
+
         let activePilots = null;
         let currentSessionParams = { flight_duration_sec: 600, prep_duration_sec: 120 };
 
@@ -1248,9 +1292,16 @@
                 activePilots = {};
                 for (let pilotId in dataP.session.active_pilots) {
                     const p = dataP.session.active_pilots[pilotId];
+                    const isPaused = p.status === 'paused';
+                    const pauseBtn = isPaused
+                        ? `<button class="btn btn-sm btn-success" onclick="resumePilot(${p.pilot_id})">Wznów</button>`
+                        : `<button class="btn btn-sm btn-warning" onclick="pausePilot(${p.pilot_id})">Pauza</button>`;
                     html += `
-                    <div class="item">
-                        ${p.pilot.name} (${p.vtx}) <button class="btn btn-sm btn-danger btn-sm" onclick="removePilot(${p.pilot_id})">×</button>
+                    <div class="item${isPaused ? ' pilot-paused' : ''}">
+                        <span class="pilot-name">${p.pilot.name} (${p.vtx})</span>
+                        ${isPaused ? '<span class="badge-pilot-paused">PAUZA</span>' : ''}
+                        ${pauseBtn}
+                        <button class="btn btn-sm btn-danger" onclick="removePilot(${p.pilot_id})">×</button>
                     </div>`;
                     activePilots[p.pilot_id] = p;
                 }
@@ -1394,8 +1445,9 @@
                 const header = `<div class="heat-ch-header ${chClass}"><span>${ch}</span><span>${CH_FREQ[ch]}</span></div>`;
                 if (pilot) {
                     const vtxCls = VTX_CLASS[pilot.vtx] || "vtx-tag";
+                    const pauseBadge = pilot.status === 'paused' ? ' <span class="badge-pilot-paused">PAUZA</span>' : '';
                     const body = `<div class="heat-pilot-body">
-                        <div class="heat-pilot-name">${pilot.pilot.name}</div>
+                        <div class="heat-pilot-name">${pilot.pilot.name}${pauseBadge}</div>
                         <span class="vtx-tag ${vtxCls}">${pilot.vtx}</span>
                     </div>`;
                     return `<div class="heat-pilot-card">${header}${body}</div>`;
@@ -1529,9 +1581,11 @@
 
         function createPilotCard(pilot, groupSeq, channel) {
             const div = document.createElement('div');
-            div.className = `pilot-card`;
+            const isPaused = pilot.status === 'paused';
+            div.className = `pilot-card${isPaused ? ' pilot-paused' : ''}`;
             div.draggable = true;
-            div.innerHTML = `<strong>${pilot.pilot.name}</strong><br><small>${pilot.vtx}</small>`;
+            const pauseBadge = isPaused ? ' <span class="badge-pilot-paused">PAUZA</span>' : '';
+            div.innerHTML = `<strong>${pilot.pilot.name}</strong>${pauseBadge}<br><small>${pilot.vtx}</small>`;
 
             div.ondragstart = (e) => handleDragStart(e, pilot.pilot_id, groupSeq, channel);
             div.ondragend = handleDragEnd;
@@ -1600,7 +1654,7 @@
             const frame = document.getElementById('groupFrame');
 
             // Ustawiamy źródło tylko jeśli jest puste (lub odświeżamy)
-            frame.src = "/static/groups.html";
+            frame.src = `/static/groups.html?v=${Date.now()}`;
             modal.style.display = 'block';
 
             // Blokada przewijania tła strony głównej

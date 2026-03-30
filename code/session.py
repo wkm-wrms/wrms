@@ -259,6 +259,55 @@ class Session(BaseModel):  # pylint: disable=too-many-instance-attributes
             self.next_heat.prep_time = prep_duration_sec
         self._dirty_list["session"] = True
 
+    def pause_pilot(self, pilot_id: int):
+        """
+        Set a pilot's participation status to 'paused'.
+
+        The pilot remains in their group assignment. If next_heat has already
+        been pre-created and contains this pilot, they are removed from it so
+        the change takes effect immediately for the upcoming heat.
+
+        Args:
+            pilot_id: ID of the pilot to pause.
+
+        Raises:
+            ValueError: If the pilot is not active in this session.
+        """
+        if pilot_id not in self.active_pilots:
+            raise ValueError(f"Pilot {pilot_id} is not active in this session.")
+        self.active_pilots[pilot_id].status = "paused"
+        # Remove from pre-created next_heat immediately
+        if self.next_heat:
+            ch_to_pop = next(
+                (ch for ch, slot in self.next_heat.channels.items()
+                 if slot is not None and slot.pilot_id == pilot_id),
+                None,
+            )
+            if ch_to_pop is not None:
+                del self.next_heat.channels[ch_to_pop]
+
+    def resume_pilot(self, pilot_id: int):
+        """
+        Set a pilot's participation status back to 'active'.
+
+        If next_heat has already been pre-created, it is rebuilt from the
+        source group so the resumed pilot is included in the upcoming heat.
+
+        Args:
+            pilot_id: ID of the pilot to resume.
+
+        Raises:
+            ValueError: If the pilot is not active in this session.
+        """
+        if pilot_id not in self.active_pilots:
+            raise ValueError(f"Pilot {pilot_id} is not active in this session.")
+        self.active_pilots[pilot_id].status = "active"
+        # Rebuild next_heat so the resumed pilot is re-included
+        if self.next_heat is not None and self.next_group is not None:
+            self.next_heat = self.create_heat(
+                group=self.next_group, heat_number=self.next_heat_number
+            )
+
     # ------------------------------------------------------------------
     # Pilot management
     # ------------------------------------------------------------------
@@ -400,7 +449,10 @@ class Session(BaseModel):  # pylint: disable=too-many-instance-attributes
         """
         Create a new Heat as a snapshot of the given group.
 
-        The channels dict is copied so later group edits don't affect the heat.
+        Paused pilots are excluded from the heat channels — they keep their
+        group slot but do not participate in this flight.
+        The channels dict is built fresh so later group/status edits don't
+        affect an already-created heat.
 
         Args:
             group:       Source group whose roster is snapshotted.
@@ -409,11 +461,16 @@ class Session(BaseModel):  # pylint: disable=too-many-instance-attributes
         Returns:
             A new Heat in PLANNED status.
         """
+        channels = {
+            ch: pilot
+            for ch, pilot in group.channels.items()
+            if pilot is not None and pilot.status == "active"
+        }
         return Heat(
             session_id=self.session_id,
             heat_number=heat_number,
             group_sequence=group.group_sequence,
-            channels=group.channels.copy(),
+            channels=channels,
             prep_time=self.prep_duration_sec,
             flight_time=self.flight_duration_sec,
         )

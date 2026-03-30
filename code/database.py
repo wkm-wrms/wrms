@@ -200,6 +200,7 @@ class RaceDatabase:
                 "ALTER TABLE heat ADD COLUMN phase_before_pause TEXT",
                 "ALTER TABLE pilot ADD COLUMN risk_factor INTEGER DEFAULT 3",
                 "ALTER TABLE pilot ADD COLUMN notes TEXT DEFAULT ''",
+                "ALTER TABLE active_pilot ADD COLUMN status TEXT NOT NULL DEFAULT 'active'",
             ]
             for _sql in _adds:
                 try:
@@ -335,12 +336,13 @@ class RaceDatabase:
         result = {}
         with self._get_conn() as conn:
             rows = conn.execute(
-                "SELECT pilot_id, vtx FROM active_pilot WHERE session_id = ?",
+                "SELECT pilot_id, vtx, status FROM active_pilot WHERE session_id = ?",
                 (session_id,)
             ).fetchall()
             for row in rows:
                 result[row["pilot_id"]] = ActivePilot(
-                    self.get_pilot_by_id(row['pilot_id']), row["vtx"]
+                    self.get_pilot_by_id(row['pilot_id']), row["vtx"],
+                    status=row["status"]
                 )
         return result
 
@@ -534,6 +536,22 @@ class RaceDatabase:
             conn.execute(
                 "DELETE FROM active_pilot WHERE session_id=? AND pilot_id=?",
                 (session_id, pilot_id),
+            )
+            conn.commit()
+
+    def update_pilot_status(self, session_id: str, pilot_id: int, status: str):
+        """
+        Update the participation status of a pilot in a session.
+
+        Args:
+            session_id: Target session UUID.
+            pilot_id:   Pilot whose status should be changed.
+            status:     New status string — 'active' or 'paused'.
+        """
+        with self._get_conn() as conn:
+            conn.execute(
+                "UPDATE active_pilot SET status=? WHERE session_id=? AND pilot_id=?",
+                (status, session_id, pilot_id),
             )
             conn.commit()
 

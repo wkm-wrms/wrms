@@ -24,20 +24,24 @@ class ActivePilot(BaseModel):
     pilot: Pilot
     vtx: str
     is_digital: bool
+    status: str = "active"  # "active" or "paused"
 
-    def __init__(self, pilot: Pilot, vtx: str, is_digital: bool = None):
+    def __init__(self, pilot: Pilot, vtx: str, is_digital: bool = None,
+                 status: str = "active"):
         """
         Create an ActivePilot from a Pilot and VTX type string.
 
         Args:
-            pilot: The base Pilot record.
-            vtx: VTX system type — one of 'Analog', 'DJI', 'HD0', 'Walksnail'.
+            pilot:     The base Pilot record.
+            vtx:       VTX system type — one of 'Analog', 'DJI', 'HD0', 'Walksnail'.
             is_digital: Overrides auto-detection when provided explicitly.
+            status:    Participation status — 'active' (default) or 'paused'.
         """
         if is_digital is None:
             is_digital = vtx != "Analog"
         super().__init__(pilot_id=pilot.get_pilot_id(),
-                         pilot=pilot, vtx=vtx, is_digital=is_digital)
+                         pilot=pilot, vtx=vtx, is_digital=is_digital,
+                         status=status)
 
     def total_score(self) -> int:
         """Return matchmaking score: vision_points(vtx) + pilot.risk_factor.
