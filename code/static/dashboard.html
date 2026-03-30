@@ -654,9 +654,9 @@
                 } else if (heat.status === 'PAUSED') {
                     timerRunning = false;
                 }
-                if (heat.status === 'FLIGHT') {
+                if (currentHeatStatus !== null && heat.status === 'FLIGHT') {
                     playStartSound();
-                } else if (heat.status === 'PREP') {
+                } else if (currentHeatStatus !== null && heat.status === 'PREP') {
                     playEndSound();
                 }
                 currentHeatStatus = heat.status;
@@ -836,14 +836,24 @@
 
         // Polling is started by startDashboard() after user interaction
 
-        // --- Startup: check cookie, skip modal if already set ---
+        // --- Startup: check cookie ---
         // Must run AFTER all let/function declarations to avoid temporal dead zone errors.
+        // Browser autoplay policy requires a user gesture before any audio can play.
+        // - Cookie "no sound": skip modal (no audio needed, no gesture required).
+        // - Cookie "with sound": show modal so the click acts as the required user gesture.
+        // - No cookie: show modal as normal.
         (function init() {
             const saved = getCookie('wrms_audio');
-            if (saved !== null) {
-                startDashboard(saved === '1');
+            if (saved === '0') {
+                // Saved preference is silent — safe to skip modal, no audio will play.
+                startDashboard(false);
+            } else if (saved === '1') {
+                // Saved preference is sound-on — show modal to capture required user gesture,
+                // but hint that the previous choice was "with sound".
+                document.querySelector('#startupModal p').textContent =
+                    'Poprzednia sesja: z dźwiękiem. Kliknij, aby potwierdzić.';
             }
-            // else: modal stays visible, user must choose
+            // saved === null: modal shows with default text, user chooses for the first time.
         })();
     </script>
 </body>
