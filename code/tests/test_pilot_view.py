@@ -18,10 +18,11 @@ class TestPilotViewRoute:
     """Tests for the /pilot/{session_id} HTML route."""
 
     def test_pilot_view_unknown_session_returns_404(self):
-        """Unknown session_id returns 404 JSON, no HTML served."""
+        """Unknown session_id returns 404 HTML with 'Session is not active'."""
         r = client.get("/pilot/nonexistent-session-xyz")
         assert r.status_code == 404
-        assert r.json()["message"] == "Session is not active."
+        assert "text/html" in r.headers["content-type"]
+        assert "Session is not active" in r.text
 
     def test_pilot_view_wrong_id_returns_404(self):
         """Wrong session_id (even if a session is active) returns 404."""

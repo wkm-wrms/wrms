@@ -82,6 +82,10 @@ Na podstawie analizy plików `requirements.md` oraz `use cases.md` względem akt
 | 2026-03-30 | Session params mid-session update: POST /api/session/update_params; session.update_params() propagates to next_heat (PLANNED); current heat unaffected; descriptions + min=1 on create form; "Zmień parametry" button + inline modal in session.html; 11 new tests in test_session_params.py |
 | 2026-03-30 | Pilot pause/resume: status field on ActivePilot ('active'/'paused'); DB migration (active_pilot.status column); pause_pilot()/resume_pilot() on Session; POST /api/session/pause_pilot + resume_pilot; Pauza/Wznów buttons + visual badge in session.html; 17 new tests in test_pilot_pause.py |
 | 2026-03-30 | Paused pilot heat filtering: create_heat() skips paused pilots; pause_pilot() removes pilot from pre-created next_heat; resume_pilot() rebuilds next_heat; API endpoints persist next_heat after status change; PAUZA badge added to all group displays (session.html groups panel + heat cards, groups.html, groups_view.html); 20 new tests (total test_pilot_pause.py: 20 tests) |
+| 2026-03-30 | Dashboard audio: cookie-based preference (wrms_audio, 365d); skip modal when sound=off; show modal for user gesture when sound=on; speaker icon toggle (top-right); sounds suppressed on initial page load (null guard on currentHeatStatus) |
+| 2026-03-30 | Security: GET /api/session, /api/session/groups, /api/session/{id} protected with require_admin; dashboard.html uses only public GET /api/heat |
+| 2026-03-30 | SQLite connection leak fix: _get_conn() changed to @contextmanager with commit/rollback/close; eliminates ResourceWarning from application code |
+| 2026-03-30 | Pilot public view (Frontend 2): GET /pilot/{session_id} serves pilot.html (mobile-first, portrait); 404 HTML page if session_id invalid or session not active; QR code widget on dashboard.html (qrcodejs, local); session_id added to GET /api/heat response; 6 tests in test_pilot_view.py |
 
 ## 6. Ideas / Future Improvements
 
@@ -97,6 +101,7 @@ Na podstawie analizy plików `requirements.md` oraz `use cases.md` względem akt
 - **Automatic rebalance after pilot removal**: Currently requires manual `/rebalance` call
 - **5th pilot Low Band rule**: Full Low Band channel (LB) support in matchmaking
 - ~~**Fix audio autoplay in browser**~~ *(done 2026-03-28 — startup modal with "z komunikatami" / "bez dźwięku" choice; silent.mp3 unlocks browser autoplay policy on first gesture)*
+- ~~**Frontend 2 (Public View)**~~ *(done 2026-03-30 — /pilot/{session_id}, mobile pilot panel, QR code on dashboard)*
 - **`is_active` flag semantics**: `session.stop()` sets `current_phase='FINISHED'` but leaves `is_active=True`; consider aligning or documenting
 
 ---

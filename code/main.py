@@ -4,7 +4,7 @@ Initializes the FastAPI server, mounts routers, and handles session middleware.
 """
 from fastapi import FastAPI, Request
 from fastapi.exceptions import HTTPException
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 import uvicorn
@@ -100,9 +100,22 @@ async def serve_pilot_view(session_id: str):
     """
     session = get_session()
     if session is None or session.session_id != session_id or session.current_phase == "FINISHED":
-        return JSONResponse(
+        return HTMLResponse(
             status_code=404,
-            content={"status": "error", "message": "Session is not active."},
+            content=(
+                "<!DOCTYPE html><html lang='pl'><head><meta charset='UTF-8'>"
+                "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+                "<title>404 — WKM Race</title>"
+                "<style>"
+                "body{margin:0;display:flex;align-items:center;justify-content:center;"
+                "height:100dvh;background:#0a0a0a;color:#eee;"
+                "font-family:'Segoe UI',system-ui,sans-serif;text-align:center;}"
+                "h1{font-size:4rem;color:#00d4ff;margin:0;}"
+                "p{color:#888;font-size:1.1rem;margin-top:12px;}"
+                "</style></head><body>"
+                "<div><h1>404</h1><p>Session is not active.</p></div>"
+                "</body></html>"
+            ),
         )
     return FileResponse("static/pilot.html")
 
