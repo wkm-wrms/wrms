@@ -87,7 +87,15 @@ Na podstawie analizy plików `requirements.md` oraz `use cases.md` względem akt
 | 2026-03-30 | SQLite connection leak fix: _get_conn() changed to @contextmanager with commit/rollback/close; eliminates ResourceWarning from application code |
 | 2026-03-30 | Pilot public view (Frontend 2): GET /pilot/{session_id} serves pilot.html (mobile-first, portrait); 404 HTML page if session_id invalid or session not active; QR code widget on dashboard.html (qrcodejs, local); session_id added to GET /api/heat response; 6 tests in test_pilot_view.py |
 
-## 6. Ideas / Future Improvements
+## 6. Hardware Buzzer
+
+Sprzętowy buzzer jako uzupełnienie audio panelu głównego (Frontend 1).
+Dawałby sygnały dźwiękowe o zbliżającym się końcu sesji i starcie lotu.
+Koncepcja do opisania przez właściciela projektu.
+
+---
+
+## 7. Ideas / Future Improvements
 
 - **Database schema versioning**: Store the current schema version in a dedicated `schema_version` table. The application code declares its expected version. On startup, if the code version is higher than the DB version, apply numbered migration patches in sequence to bring the DB up to date. Every future structural change to the DB (new table, new column, index change) must be accompanied by: (1) updating the `CREATE TABLE` baseline, (2) writing a numbered patch (e.g. `migrations/002_add_risk_factor.sql`), (3) bumping the expected version constant in code.
 - **API method naming convention**: All methods in internal classes that are called by the API layer should be prefixed with `api_`. Their docstrings should fully describe accepted parameters and return values (type, shape, meaning).
