@@ -386,6 +386,27 @@
 
         #startupModal .btn-audio-yes:hover { filter: brightness(110%); }
         #startupModal .btn-audio-no:hover  { background: #444; }
+
+        /* --- AUDIO TOGGLE BUTTON --- */
+        #audio-toggle {
+            position: fixed;
+            top: 12px;
+            right: 16px;
+            z-index: 500;
+            background: rgba(0, 0, 0, 0.45);
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 1.6rem;
+            cursor: pointer;
+            line-height: 1;
+            user-select: none;
+            transition: background 0.2s;
+        }
+
+        #audio-toggle:hover {
+            background: rgba(255, 255, 255, 0.12);
+        }
     </style>
 </head>
 
@@ -417,6 +438,8 @@
             </div>
         </div>
     </div>
+
+    <button id="audio-toggle" onclick="toggleAudio()" title="Przełącz dźwięk"></button>
 
     <div id="logo"><img src="/static/logo.png" alt="Logo" /></div>
     <div class="top-section">
@@ -499,9 +522,41 @@
         const CHANNELS = ["R1", "R3", "R6", "R7"];
 
         let audioEnabled = false;
+        let dashboardStarted = false;
+
+        // --- Cookie helpers ---
+        function setCookie(name, value, days) {
+            const expires = new Date(Date.now() + days * 864e5).toUTCString();
+            document.cookie = `${name}=${value}; expires=${expires}; path=/`;
+        }
+
+        function getCookie(name) {
+            return document.cookie.split('; ').reduce((acc, part) => {
+                const [k, v] = part.split('=');
+                return k === name ? v : acc;
+            }, null);
+        }
+
+        // --- Audio toggle icon ---
+        function updateAudioIcon() {
+            const btn = document.getElementById('audio-toggle');
+            btn.textContent = audioEnabled ? '🔊' : '🔇';
+        }
+
+        function toggleAudio() {
+            audioEnabled = !audioEnabled;
+            setCookie('wrms_audio', audioEnabled ? '1' : '0', 365);
+            updateAudioIcon();
+            if (audioEnabled) {
+                // User gesture — unlock browser autoplay policy
+                const silent = document.getElementById('silentSound');
+                if (silent) silent.play().catch(() => {});
+            }
+        }
 
         function startDashboard(withAudio) {
             audioEnabled = withAudio;
+            setCookie('wrms_audio', withAudio ? '1' : '0', 365);
 
             if (withAudio) {
                 // Play silent sound to unlock browser autoplay policy with this user gesture
@@ -510,13 +565,27 @@
             }
 
             document.getElementById('startupModal').style.display = 'none';
+            updateAudioIcon();
 
-            // Begin polling now that user has interacted
-            setInterval(updateDashboard, 5000);
-            setInterval(displayTimer, 100);
-            updateDashboard();
-            displayTimer();
+            if (!dashboardStarted) {
+                dashboardStarted = true;
+                // Begin polling now that user has interacted
+                setInterval(updateDashboard, 5000);
+                setInterval(displayTimer, 100);
+                updateDashboard();
+                displayTimer();
+            }
         }
+
+        // --- Startup: check cookie, skip modal if already set ---
+        (function init() {
+            const saved = getCookie('wrms_audio');
+            if (saved !== null) {
+                // Cookie exists — skip the modal and start immediately
+                startDashboard(saved === '1');
+            }
+            // else: modal stays visible, user must choose
+        })();
 
         async function updateDashboard() {
             try {
