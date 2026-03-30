@@ -48,6 +48,7 @@ def process_heat_data(heat: Heat) -> Dict[str, Any]:
         "heat_number": heat.heat_number,
         "live_seconds_left": seconds_left,
         "channels": heat.model_dump()["channels"],
+        "session_id": heat.session_id,
     }
 
 

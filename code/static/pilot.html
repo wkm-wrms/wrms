@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="pl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>WKM Race — Panel Pilota</title>
+    <style>
+        :root {
+            --bg: #0a0a0a;
+            --surface: #1a1a1a;
+            --border: #2a2a2a;
+            --accent: #00d4ff;
+            --text: #eeeeee;
+            --text-dim: #888;
+            --success: #2ecc71;
+            --warning: #ffcc00;
+            --danger: #ff4d4d;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- STATUS BANNER --- */
+        #status-banner {
+            flex: 0 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 14px 16px 10px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+        }
+
+        #phase-label {
+            font-size: clamp(1.1rem, 4.5vw, 1.6rem);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            color: var(--accent);
+        }
+
+        #timer {
+            font-size: clamp(3rem, 14vw, 5rem);
+            font-weight: 900;
+            font-variant-numeric: tabular-nums;
+            line-height: 1.05;
+            color: var(--text);
+        }
+
+        #timer.timer-low {
+            color: var(--danger);
+            animation: pulse 1s infinite;
+        }
+
+        #heat-number {
+            font-size: clamp(0.75rem, 3vw, 1rem);
+            color: var(--text-dim);
+            letter-spacing: 1px;
+            margin-top: 2px;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* --- CARDS --- */
+        .heat-card {
+            flex: 1 1 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            padding: 12px 14px;
+            min-height: 0;
+        }
+
+        .heat-card + .heat-card {
+            border-top: 1px solid var(--border);
+        }
+
+        .card-title {
+            font-size: clamp(0.65rem, 2.5vw, 0.85rem);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+            flex: 0 0 auto;
+        }
+
+        /* --- PILOT ROWS --- */
+        .pilot-list {
+            flex: 1 1 0;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            overflow-y: auto;
+        }
+
+        .pilot-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--surface);
+            border-radius: 8px;
+            padding: 10px 12px;
+            border-left: 4px solid var(--border);
+        }
+
+        .pilot-row.analog {
+            border-left-color: #ffc107;
+        }
+
+        .pilot-row.digital {
+            border-left-color: var(--accent);
+        }
+
+        .ch-label {
+            font-size: clamp(0.75rem, 3vw, 1rem);
+            font-weight: 700;
+            color: var(--text-dim);
+            min-width: 28px;
+        }
+
+        .pilot-name {
+            font-size: clamp(1.1rem, 4.5vw, 1.5rem);
+            font-weight: 600;
+            flex: 1;
+        }
+
+        .pilot-row.paused .pilot-name {
+            text-decoration: line-through;
+            opacity: 0.5;
+        }
+
+        .badge {
+            font-size: 0.6rem;
+            font-weight: 700;
+            border-radius: 4px;
+            padding: 2px 6px;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .badge-digital {
+            background: rgba(0, 212, 255, 0.15);
+            color: var(--accent);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+        }
+
+        .badge-paused {
+            background: var(--warning);
+            color: #333;
+        }
+
+        .empty-slot {
+            color: var(--text-dim);
+            font-style: italic;
+            font-size: clamp(0.9rem, 3.5vw, 1.1rem);
+        }
+
+        /* --- SPECIAL SCREENS --- */
+        #info-screen {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            text-align: center;
+            padding: 32px;
+        }
+
+        #info-screen .info-title {
+            font-size: clamp(1.4rem, 6vw, 2rem);
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+
+        #info-screen .info-sub {
+            font-size: clamp(0.9rem, 3.5vw, 1.1rem);
+            color: var(--text-dim);
+        }
+
+        /* --- FOOTER --- */
+        #footer {
+            flex: 0 0 auto;
+            text-align: center;
+            padding: 6px;
+            font-size: 0.65rem;
+            color: #444;
+            border-top: 1px solid var(--border);
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Shown when session is active -->
+    <div id="active-view" style="display:none; flex-direction:column; height:100dvh;">
+
+        <div id="status-banner">
+            <div id="phase-label">ŁADOWANIE</div>
+            <div id="timer">--:--</div>
+            <div id="heat-number"></div>
+        </div>
+
+        <div class="heat-card" id="current-card">
+            <div class="card-title">Aktualny bieg</div>
+            <div class="pilot-list" id="current-pilots"></div>
+        </div>
+
+        <div class="heat-card" id="next-card">
+            <div class="card-title">Następna grupa</div>
+            <div class="pilot-list" id="next-pilots"></div>
+        </div>
+
+        <div id="footer">Odświeżono: <span id="last-refresh">—</span></div>
+    </div>
+
+    <!-- Shown when no session / finished / loading -->
+    <div id="info-screen">
+        <div class="info-title" id="info-title">WKM Race</div>
+        <div class="info-sub" id="info-sub">Łączenie...</div>
+    </div>
+
+    <script>
+        const CHANNELS = ['R1', 'R3', 'R6', 'R7'];
+
+        const PHASE_LABEL = {
+            'PREP':     'Przygotowanie',
+            'FLIGHT':   'Lot',
+            'PAUSED':   'Pauza',
+            'FINISHED': 'Zakończono',
+            'PLANNED':  'Zaraz start',
+        };
+
+        const PHASE_COLOR = {
+            'PREP':     '#00d4ff',
+            'FLIGHT':   '#2ecc71',
+            'PAUSED':   '#ffcc00',
+            'FINISHED': '#888',
+            'PLANNED':  '#00d4ff',
+        };
+
+        let timerEnds = null;
+        let timerInterval = null;
+        let pollInterval = null;
+        let finished = false;
+
+        // ---- Routing: read session_id from URL -------------------------
+        const sessionId = window.location.pathname.split('/').filter(Boolean).pop();
+
+        // ---- Timer display ---------------------------------------------
+        function startTimer(secsLeft, status) {
+            timerEnds = Date.now() + secsLeft * 1000;
+            if (!timerInterval) {
+                timerInterval = setInterval(tickTimer, 100);
+            }
+            tickTimer(status);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+            timerInterval = null;
+            document.getElementById('timer').textContent = '--:--';
+            document.getElementById('timer').classList.remove('timer-low');
+        }
+
+        function tickTimer() {
+            if (timerEnds === null) return;
+            const timerEl = document.getElementById('timer');
+            let secs = Math.max(0, (timerEnds - Date.now()) / 1000);
+            const m = Math.floor(secs / 60);
+            const s = Math.floor(secs % 60);
+            timerEl.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+            const status = document.getElementById('phase-label').dataset.status;
+            if (secs < 30 && status === 'FLIGHT') {
+                timerEl.classList.add('timer-low');
+            } else {
+                timerEl.classList.remove('timer-low');
+            }
+        }
+
+        // ---- Pilot row builder -----------------------------------------
+        function buildPilotRows(channels) {
+            const list = document.createDocumentFragment();
+            let hasAny = false;
+
+            CHANNELS.forEach(ch => {
+                const slot = channels[ch];
+                const row = document.createElement('div');
+
+                if (!slot) {
+                    // empty channel — skip silently
+                    return;
+                }
+
+                hasAny = true;
+                const isPaused = slot.status === 'paused';
+                const isDigital = slot.is_digital;
+                row.className = `pilot-row ${isDigital ? 'digital' : 'analog'}${isPaused ? ' paused' : ''}`;
+
+                const chLabel = document.createElement('span');
+                chLabel.className = 'ch-label';
+                chLabel.textContent = ch;
+
+                const name = document.createElement('span');
+                name.className = 'pilot-name';
+                name.textContent = slot.pilot?.name ?? '—';
+
+                row.appendChild(chLabel);
+                row.appendChild(name);
+
+                if (isDigital) {
+                    const badge = document.createElement('span');
+                    badge.className = 'badge badge-digital';
+                    badge.textContent = slot.vtx || 'DIG';
+                    row.appendChild(badge);
+                }
+
+                if (isPaused) {
+                    const badge = document.createElement('span');
+                    badge.className = 'badge badge-paused';
+                    badge.textContent = 'PAUZA';
+                    row.appendChild(badge);
+                }
+
+                list.appendChild(row);
+            });
+
+            if (!hasAny) {
+                const empty = document.createElement('div');
+                empty.className = 'empty-slot';
+                empty.textContent = '—';
+                list.appendChild(empty);
+            }
+
+            return list;
+        }
+
+        // ---- Render ----------------------------------------------------
+        function renderHeat(heat, nextHeat) {
+            const status = heat?.status ?? 'PLANNED';
+            const phaseLabel = document.getElementById('phase-label');
+            phaseLabel.textContent = PHASE_LABEL[status] ?? status;
+            phaseLabel.dataset.status = status;
+            phaseLabel.style.color = PHASE_COLOR[status] ?? '#eee';
+
+            document.getElementById('heat-number').textContent =
+                heat ? `Bieg #${heat.heat_number}` : '';
+
+            // Timer
+            if (heat && heat.live_seconds_left !== null && status !== 'PAUSED') {
+                startTimer(heat.live_seconds_left, status);
+            } else if (status === 'PAUSED') {
+                clearInterval(timerInterval);
+                timerInterval = null;
+                // Show frozen time
+                if (heat?.live_seconds_left !== null) {
+                    const secs = heat.live_seconds_left;
+                    const m = Math.floor(secs / 60);
+                    const s = Math.floor(secs % 60);
+                    document.getElementById('timer').textContent =
+                        `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                }
+            } else {
+                stopTimer();
+            }
+
+            // Current pilots
+            const currentList = document.getElementById('current-pilots');
+            currentList.innerHTML = '';
+            if (heat?.channels) {
+                currentList.appendChild(buildPilotRows(heat.channels));
+            }
+
+            // Next pilots
+            const nextList = document.getElementById('next-pilots');
+            nextList.innerHTML = '';
+            const nextCard = document.getElementById('next-card');
+            if (nextHeat?.channels && Object.keys(nextHeat.channels).length > 0) {
+                nextList.appendChild(buildPilotRows(nextHeat.channels));
+                nextCard.style.display = 'flex';
+            } else {
+                const msg = document.createElement('div');
+                msg.className = 'empty-slot';
+                msg.textContent = 'Ostatnia grupa';
+                nextList.appendChild(msg);
+                nextCard.style.display = 'flex';
+            }
+
+            // Refresh timestamp
+            const now = new Date();
+            document.getElementById('last-refresh').textContent =
+                `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+        }
+
+        // ---- Show/hide screens -----------------------------------------
+        function showActive() {
+            document.getElementById('info-screen').style.display = 'none';
+            const v = document.getElementById('active-view');
+            v.style.display = 'flex';
+        }
+
+        function showInfo(title, sub) {
+            document.getElementById('active-view').style.display = 'none';
+            document.getElementById('info-screen').style.display = 'flex';
+            document.getElementById('info-title').textContent = title;
+            document.getElementById('info-sub').textContent = sub;
+        }
+
+        // ---- Poll API --------------------------------------------------
+        async function poll() {
+            if (finished) return;
+            try {
+                const res = await fetch('/api/heat');
+                const data = await res.json();
+
+                if (data.status !== 'ok' || !data.heat) {
+                    showInfo('404', 'Session is not active.');
+                    stopTimer();
+                    return;
+                }
+
+                const heat = data.heat;
+                const nextHeat = data.next_heat;
+
+                // Validate that the URL session_id matches the active session
+                if (heat.session_id !== sessionId) {
+                    finished = true;
+                    clearInterval(pollInterval);
+                    stopTimer();
+                    showInfo('404', 'Session is not active.');
+                    return;
+                }
+
+                if (heat.status === 'FINISHED') {
+                    finished = true;
+                    clearInterval(pollInterval);
+                    stopTimer();
+                    showInfo('Sesja zakończona', 'Dziękujemy za udział!');
+                    return;
+                }
+
+                showActive();
+                renderHeat(heat, nextHeat);
+
+                // Trigger immediate re-poll when timer expires
+                if (heat.live_seconds_left !== null && heat.live_seconds_left <= 0) {
+                    setTimeout(poll, 500);
+                }
+
+            } catch (e) {
+                showInfo('WKM Race', 'Brak połączenia...');
+                console.error('Poll error:', e);
+            }
+        }
+
+        // ---- Init ------------------------------------------------------
+        showInfo('WKM Race', 'Łączenie...');
+        poll();
+        pollInterval = setInterval(poll, 3000);
+    </script>
+
+</body>
+</html>

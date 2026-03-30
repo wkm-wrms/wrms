@@ -387,6 +387,22 @@
         #startupModal .btn-audio-yes:hover { filter: brightness(110%); }
         #startupModal .btn-audio-no:hover  { background: #444; }
 
+        /* --- QR CODE WIDGET --- */
+        #qr-widget {
+            position: fixed;
+            top: 15%;
+            left: 12px;
+            z-index: 500;
+            display: none;
+        }
+
+        #qr-widget canvas,
+        #qr-widget img {
+            display: block;
+            border-radius: 6px;
+            border: 3px solid white;
+        }
+
         /* --- AUDIO TOGGLE BUTTON --- */
         #audio-toggle {
             position: fixed;
@@ -439,6 +455,7 @@
         </div>
     </div>
 
+    <div id="qr-widget"></div>
     <button id="audio-toggle" onclick="toggleAudio()" title="Przełącz dźwięk"></button>
 
     <div id="logo"><img src="/static/logo.png" alt="Logo" /></div>
@@ -642,6 +659,8 @@
             }
 
             const heat = response.heat;
+
+            if (heat.session_id) renderQR(heat.session_id);
 
             if (currenHeatNumber !== heat.heat_number) {
                 currenHeatNumber = heat.heat_number;
@@ -855,6 +874,29 @@
             }
             // saved === null: modal shows with default text, user chooses for the first time.
         })();
+    </script>
+
+    <script src="/static/js/qrcode.min.js"></script>
+    <script>
+        // QR code widget — generated from the session_id returned by /api/heat.
+        // Displayed in the bottom-left corner for pilots to scan.
+        let qrGenerated = false;
+
+        function renderQR(sessionId) {
+            if (qrGenerated) return;
+            const widget = document.getElementById('qr-widget');
+            const url = `${window.location.origin}/pilot/${sessionId}`;
+            new QRCode(widget, {
+                text: url,
+                width: 110,
+                height: 110,
+                colorDark: '#000000',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.M,
+            });
+            widget.style.display = 'block';
+            qrGenerated = true;
+        }
     </script>
 </body>
 

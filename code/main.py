@@ -92,6 +92,21 @@ async def serve_backup_manager():
     return FileResponse("static/backup.html")
 
 
+@app.get("/pilot/{session_id}")
+async def serve_pilot_view(session_id: str):
+    """Serves the public pilot view (Frontend 2), accessible via QR code.
+
+    Returns 404 if the session_id does not match the currently active session.
+    """
+    session = get_session()
+    if session is None or session.session_id != session_id or session.current_phase == "FINISHED":
+        return JSONResponse(
+            status_code=404,
+            content={"status": "error", "message": "Session is not active."},
+        )
+    return FileResponse("static/pilot.html")
+
+
 @app.get("/favicon.ico")
 async def serve_favicon():
     """Serves the site icon."""
