@@ -12,6 +12,7 @@ import json
 import os
 import secrets
 import sqlite3
+from contextlib import contextmanager
 from datetime import datetime
 import hashlib
 
@@ -55,13 +56,25 @@ class RaceDatabase:
             os.makedirs(db_dir, exist_ok=True)
         self._init_tables()
 
-    def _get_conn(self) -> sqlite3.Connection:
-        """Open a connection with WAL mode, foreign keys, and row factory."""
+    @contextmanager
+    def _get_conn(self):
+        """Open a connection with WAL mode, foreign keys, and row factory.
+
+        Yields the connection and guarantees close() is called on exit,
+        eliminating ResourceWarning from unclosed SQLite connections.
+        """
         conn = sqlite3.connect(self.db_path)
         conn.execute("PRAGMA journal_mode=WAL;")
         conn.execute("PRAGMA foreign_keys = 1;")
         conn.row_factory = sqlite3.Row
-        return conn
+        try:
+            yield conn
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
 
     def _init_tables(self):
         """Create all tables and indexes if they do not already exist."""
