@@ -577,16 +577,6 @@
             }
         }
 
-        // --- Startup: check cookie, skip modal if already set ---
-        (function init() {
-            const saved = getCookie('wrms_audio');
-            if (saved !== null) {
-                // Cookie exists — skip the modal and start immediately
-                startDashboard(saved === '1');
-            }
-            // else: modal stays visible, user must choose
-        })();
-
         async function updateDashboard() {
             try {
                 // 1. Pobierz Aktualny Heat
@@ -845,6 +835,16 @@
         }
 
         // Polling is started by startDashboard() after user interaction
+
+        // --- Startup: check cookie, skip modal if already set ---
+        // Must run AFTER all let/function declarations to avoid temporal dead zone errors.
+        (function init() {
+            const saved = getCookie('wrms_audio');
+            if (saved !== null) {
+                startDashboard(saved === '1');
+            }
+            // else: modal stays visible, user must choose
+        })();
     </script>
 </body>
 
