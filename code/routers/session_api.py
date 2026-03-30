@@ -45,7 +45,7 @@ async def create_session(data: SessionStart, _: str = Depends(require_admin)):
     return {"status": "ok", "session": session}
 
 
-@router.get("")
+@router.get("", dependencies=[Depends(require_admin)])
 async def get_active_session():
     """Returns data for the currently active session."""
     session = get_session()
@@ -55,7 +55,7 @@ async def get_active_session():
     return {"status": "ok", "session": session}
 
 
-@router.get("/groups")
+@router.get("/groups", dependencies=[Depends(require_admin)])
 async def get_session_groups_list():
     """Returns the list of groups in the active session roster."""
     session = get_session()
@@ -64,7 +64,7 @@ async def get_session_groups_list():
     return {"status": "ok", "groups": session.groups}
 
 
-@router.get("/{session_id}")
+@router.get("/{session_id}", dependencies=[Depends(require_admin)])
 async def get_session_by_id(session_id: str):
     """Retrieves a historical session from the database by ID."""
     session = db.get_session_by_id(session_id)
