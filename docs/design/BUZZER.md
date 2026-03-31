@@ -3,7 +3,7 @@
 **Feature:** ESP32-C3-based hardware audio/visual alerter, integrated with WRMS via a dedicated public API.
 **Status:** In progress — server API done, firmware scaffold done, field testing pending.
 **Last updated:** 2026-03-31
-**Target hardware:** ESP32-C3 DevKitM-1
+**Target hardware:** ESP32-C3 DevKitC-1
 
 ---
 
@@ -24,12 +24,17 @@ Multiple buzzers can connect to the same endpoint (e.g. one per side of the trac
 
 | Component | Details | Role |
 |---|---|---|
-| ESP32-C3 DevKitM-1 | RISC-V, single-core 160 MHz, WiFi + BT | Main controller |
+| ESP32-C3 DevKitC-1 | RISC-V, single-core 160 MHz, WiFi + BT | Main controller |
 | Active buzzer | 3.3–5 V, e.g. TMB12A05 or equivalent | Audio alerts |
-| RGB LED — common cathode | 5 mm, or separate R/G/B LEDs | State indicator |
-| Resistors — 3 × 100 Ω | Through-hole or 0805 SMD | LED current limiting |
 | NPN transistor or MOSFET (optional) | e.g. 2N2222 / 2N7000 | Buzzer driver if >40 mA |
 | USB-C cable | For programming and power | — |
+
+**Optional — external RGB LED variant** (set `LED_USE_ONBOARD_SINGLE=0` in `led_rgb.h`):
+
+| Component | Details | Role |
+|---|---|---|
+| RGB LED — common cathode | 5 mm, or separate R/G/B LEDs | State indicator |
+| Resistors — 3 × 100 Ω | Through-hole or 0805 SMD | LED current limiting |
 
 > **Note on buzzer current:** ESP32-C3 GPIO is rated 40 mA max per pin. Most active buzzers
 > draw 20–40 mA at 3.3 V and can be driven directly from GPIO. If your buzzer requires more
@@ -38,49 +43,102 @@ Multiple buzzers can connect to the same endpoint (e.g. one per side of the trac
 
 ---
 
-### 2.2 GPIO Assignment
+### 2.2 LED Backend Configuration
+
+The firmware supports two LED backends, selected at compile time in `main/led_rgb.h`:
+
+```c
+#define LED_USE_ONBOARD_SINGLE  1   // 1 = onboard LED (default), 0 = external RGB
+```
+
+#### Option A — Onboard LED (default, `LED_USE_ONBOARD_SINGLE=1`)
+
+Uses the built-in blue LED on GPIO8 of the ESP32-C3 DevKitC-1. No external components required.
+
+| State | Blink pattern | Meaning |
+|---|---|---|
+| Connected, API OK | **off** (LED off) | Normal operation |
+| Disconnected / portal | **fast blink** 200 ms on/off | No WiFi |
+| WiFi OK, API down | **slow blink** 800 ms on/off | API unreachable |
+| Alarm fires | **brief flash** (80 ms off) | Alert triggered |
+
+#### Option B — External RGB LED (`LED_USE_ONBOARD_SINGLE=0`)
+
+Three-colour external LED on GPIO6/7/8.
+
+| State | Colour | Meaning |
+|---|---|---|
+| Disconnected / portal | **Red** solid | No WiFi |
+| Connected, API OK | **Green** solid | Normal operation |
+| WiFi OK, API down | **Yellow** solid | API unreachable |
+| Alarm fires | brief flash of current colour | Alert triggered |
+
+---
+
+### 2.3 GPIO Assignment
 
 | GPIO | Signal | Notes |
 |---|---|---|
 | **5** | Buzzer | Active buzzer positive terminal (HIGH = on) |
-| **6** | LED Red | Via 100 Ω resistor to R anode |
-| **7** | LED Green | Via 100 Ω resistor to G anode |
-| **8** | LED Blue | Via 100 Ω resistor to B anode |
+| **8** | Onboard LED | Built-in blue LED — Option A only |
+| **6** | LED Red | External RGB — Option B only, via 100 Ω |
+| **7** | LED Green | External RGB — Option B only, via 100 Ω |
+| **8** | LED Blue | External RGB — Option B only, via 100 Ω |
 | GND | Common ground | Buzzer −, LED cathode |
+
+> **Note:** GPIO8 is shared between the onboard LED and the external RGB Blue channel.
+> Do not connect an external LED on GPIO8 when using Option A.
 
 Pins chosen to avoid ESP32-C3 reserved signals:
 
 | GPIO | Reason to avoid |
 |---|---|
 | 2 | Strapping pin — affects boot mode |
-| 9 | BOOT button on DevKitM-1 |
-| 18, 19 | USB D−/D+ (used by USB-Serial on DevKitM-1) |
+| 9 | BOOT button on DevKitC-1 |
+| 18, 19 | USB D−/D+ (used by USB-Serial on DevKitC-1) |
 
 ---
 
-### 2.3 Wiring Diagram
+### 2.4 Wiring Diagram
+
+#### Option A — Onboard LED (no external components)
 
 ```
-ESP32-C3 DevKitM-1
-┌─────────────────────────────────────────┐
-│                                         │
-│  GPIO5 ──────────────────── [BUZZER +]  │
-│  GND   ──────────────────── [BUZZER −]  │
-│                                         │
-│  GPIO6 ──[100Ω]──── R anode            │
-│  GPIO7 ──[100Ω]──── G anode            │  RGB LED
-│  GPIO8 ──[100Ω]──── B anode            │  (common cathode)
-│  GND   ──────────── cathode            │
-│                                         │
-│  USB-C ──────────── PC (flash/power)   │
-└─────────────────────────────────────────┘
+ESP32-C3 DevKitC-1
+┌──────────────────────────────────────────────────┐
+│                                                  │
+│  GPIO5 ────────────────────────── [BUZZER +]     │
+│  GND   ────────────────────────── [BUZZER −]     │
+│                                                  │
+│  GPIO8 ── onboard blue LED (built-in, no wiring) │
+│                                                  │
+│  USB-C ── PC (flash / power)                     │
+└──────────────────────────────────────────────────┘
 ```
 
 **Active buzzer polarity:**
 ```
 [BUZZER]
-  +  →  GPIO5  (via GPIO HIGH = buzzer on)
+  +  →  GPIO5  (HIGH = on)
   −  →  GND
+```
+
+#### Option B — External RGB LED
+
+```
+ESP32-C3 DevKitC-1
+┌──────────────────────────────────────────────────┐
+│                                                  │
+│  GPIO5 ────────────────────────── [BUZZER +]     │
+│  GND   ────────────────────────── [BUZZER −]     │
+│                                                  │
+│  GPIO6 ──[100Ω]── R anode  ┐                    │
+│  GPIO7 ──[100Ω]── G anode  ├─ RGB LED            │
+│  GPIO8 ──[100Ω]── B anode  │  (common cathode)   │
+│  GND   ────────── cathode  ┘                    │
+│                                                  │
+│  USB-C ── PC (flash / power)                     │
+└──────────────────────────────────────────────────┘
 ```
 
 **RGB LED (common cathode):**
@@ -91,13 +149,13 @@ B anode  →  [100Ω]  →  GPIO8
 cathode  →  GND
 ```
 
-**Yellow** (API unreachable) is produced by driving GPIO6 (Red) + GPIO7 (Green) simultaneously.
+Yellow (API unreachable) is produced by driving GPIO6 (Red) + GPIO7 (Green) simultaneously.
 
 ---
 
-### 2.4 Power
+### 2.5 Power
 
-The device is powered via USB-C (5 V from the DevKitM-1 board, 3.3 V regulated on-board).
+The device is powered via USB-C (5 V from the DevKitC-1 board, 3.3 V regulated on-board).
 No external power supply is required for the reference build.
 
 For a standalone (no PC) deployment, use any USB-C power bank or a 5 V USB adapter.
@@ -114,7 +172,7 @@ For a standalone (no PC) deployment, use any USB-C power bank or a 5 V USB adapt
 - ESP32 starts in AP+STA mode (simultaneous Access Point and Station).
 - AP name: `WKM-Buzzer-XXYYZZ` where `XXYYZZ` are the last 3 bytes of the device's base MAC address in uppercase hex (e.g. `WKM-Buzzer-A1B2C3`). Unique per device — allows multiple buzzers to operate in the same location without SSID collision.
 - DNS redirects all traffic to the captive portal IP (classic captive portal pattern).
-- LED: **Red, solid**.
+- LED: **fast blink** (onboard) / **Red solid** (external RGB). See section 2.2.
 - In the background: continuously scans for known networks and attempts connection.
   If a known network appears, attempts login without interrupting the portal.
 
@@ -143,7 +201,7 @@ For a standalone (no PC) deployment, use any USB-C power bank or a 5 V USB adapt
 **Trigger:** Successfully connected to WiFi and received a valid response from the API endpoint.
 
 **Behaviour:**
-- LED: **Green, solid**.
+- LED: **off** (onboard) / **Green solid** (external RGB). See section 2.2.
 - Polls `GET /api/buzzer` every **5 seconds** during FLIGHT phase,
   every **10 seconds** during PREP/IDLE (determined from response).
 - Maintains a local queue of upcoming alarms (downloaded from API).
