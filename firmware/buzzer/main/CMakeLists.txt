@@ -21,3 +21,4 @@ idf_component_register(
         driver
         json
 )
+# led_strip is a managed component declared in idf_component.yml

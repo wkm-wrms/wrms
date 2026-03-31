@@ -1,40 +1,36 @@
 #pragma once
+#include <stdbool.h>
 
 /*
- * GPIO pins for the RGB LED (common cathode: HIGH = on).
- * ESP32-C3 assignment: avoids strapping (GPIO2), boot button (GPIO9),
- * USB D-/D+ (GPIO18/19), and buzzer (GPIO5).
+ * LED backend selection.
+ *
+ * LED_USE_ONBOARD_SINGLE = 1  — single onboard LED (plain GPIO, active HIGH).
+ *                               ESP32-C3 DevKitC-1: blue LED on GPIO8.
+ *                               States encoded as blink patterns:
+ *                                 CONNECTED    — LED on (solid)
+ *                                 DISCONNECTED — fast blink (200 ms on/off)
+ *                                 API down     — slow blink (800 ms on/off)
+ *
+ * LED_USE_ONBOARD_SINGLE = 0  — external common-cathode RGB LED on
+ *                               GPIO6 (R), GPIO7 (G), GPIO8 (B), each via
+ *                               a 100 Ω resistor. See BUZZER.md section 2.3.
  */
-#define LED_RED_GPIO   6
-#define LED_GREEN_GPIO 7
-#define LED_BLUE_GPIO  8
+#define LED_USE_ONBOARD_SINGLE  1
+
+/* ---- GPIO assignments ---------------------------------------------------- */
+#define LED_ONBOARD_GPIO  8   /* onboard LED on ESP32-C3 DevKitC-1 */
+
+#define LED_RED_GPIO    6     /* external RGB only */
+#define LED_GREEN_GPIO  7
+#define LED_BLUE_GPIO   8
 
 typedef enum {
     LED_STATE_OFF = 0,
-    LED_STATE_RED,           /* disconnected / Wi-Fi dropped */
-    LED_STATE_GREEN,         /* connected, API reachable */
-    LED_STATE_YELLOW,        /* connected to Wi-Fi but API unreachable */
+    LED_STATE_RED,           /* disconnected / Wi-Fi dropped  → fast blink in single-LED mode */
+    LED_STATE_GREEN,         /* connected, API reachable      → solid in single-LED mode */
+    LED_STATE_YELLOW,        /* Wi-Fi OK but API unreachable  → slow blink in single-LED mode */
 } led_state_t;
 
-/**
- * @brief Initialise all three LED GPIO pins as outputs.
- */
 void led_rgb_init(void);
-
-/**
- * @brief Set the steady-state LED colour.
- *
- * Any ongoing flash is cancelled and the LED immediately transitions to the
- * new state.
- *
- * @param state Desired colour.
- */
 void led_rgb_set(led_state_t state);
-
-/**
- * @brief Perform a single 100 ms off→on→off flash of the current colour.
- *
- * Called by the alarm scheduler when an alarm fires. Non-blocking (handled
- * by the LED task).
- */
 void led_rgb_flash(void);
