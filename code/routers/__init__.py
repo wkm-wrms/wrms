@@ -10,6 +10,7 @@ from .group_api import router as group_api
 from .heat_api import router as heat_api
 from .admin_api import router as admin_api
 from .backup_api import router as backup_api
+from .buzzer_api import router as buzzer_api
 
 # Main API router — all sub-routers are mounted here
 api_router = APIRouter(prefix="/api")
@@ -20,3 +21,4 @@ api_router.include_router(group_api)
 api_router.include_router(heat_api)
 api_router.include_router(admin_api)
 api_router.include_router(backup_api)
+api_router.include_router(buzzer_api)

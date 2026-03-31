@@ -1,0 +1,6 @@
+# ESP-IDF generated files — do not commit
+build/
+sdkconfig
+sdkconfig.old
+dependencies.lock
+managed_components/
