@@ -1,0 +1,66 @@
+name: Wdrozenie na MyDevil (FastAPI)
+
+on:
+  workflow_dispatch:
+    inputs:
+      deployment_tag:
+        description: 'Wpisz nazwe/numer taga dla tego wdrozenia (wymagane, np. v1.5.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    name: Deploy to MyDevil
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Pobieranie kodu
+        uses: actions/checkout@v4
+        # Akcja pobierze kod z gałęzi wybranej w menu "Use workflow from" na GitHubie
+
+      - name: Utworzenie pliku z wersją
+
+        run: echo "${{ inputs.deployment_tag }}" > code/public/version
+
+      - name: Wgrywanie zawartości folderu 'code' na serwer (SCP)
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.MD_HOST }}
+          username: ${{ secrets.MD_USERNAME }}
+          key: ${{ secrets.MD_PRIVATE_KEY }}
+          source: "code/**"
+          strip_components: 1
+          rm: false
+          target: "/usr/home/${{ secrets.MD_USERNAME }}/domains/wrms.wkm.waw.pl/public_python"
+
+      - name: Instalacja zależności i restart na MyDevil
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.MD_HOST }}
+          username: ${{ secrets.MD_USERNAME }}
+          key: ${{ secrets.MD_PRIVATE_KEY }}
+          script: |
+            cd /usr/home/${{ secrets.MD_USERNAME }}/domains/wrms.wkm.waw.pl/public_python
+            
+            #if [ ! -d "venv" ]; then
+            #    python3 -m venv venv
+            #fi
+            
+            source /home/${{ secrets.MD_USERNAME }}/.virtualenvs/wrms/bin/activate
+            
+            if [ -f "requirements" ]; then
+                pip install -r requirements
+            fi
+            
+            devil www restart wrms.wkm.waw.pl
+
+      # Automatycznie tworzy i wypycha wpisany przez Ciebie tag do GitHuba
+      - name: Zapisanie taga w repozytorium GitHub
+        run: |
+          git config user.name "GitHub Actions CI"
+          git config user.email "actions@github.com"
+          git tag ${{ inputs.deployment_tag }}
+          git push origin ${{ inputs.deployment_tag }}

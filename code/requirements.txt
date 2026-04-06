@@ -1,8 +1,0 @@
-fastapi
-uvicorn
-uvicorn[standard]
-a2wsgi
-pytest
-httpx
-
-python-multipart
