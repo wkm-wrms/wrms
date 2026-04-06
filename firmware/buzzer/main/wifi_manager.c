@@ -109,20 +109,72 @@ void wifi_manager_init(void)
 
     ESP_LOGI(TAG, "AP started: SSID=%s (no password)", s_ap_ssid);
 
-    /* Attempt connection to each known network in order until one succeeds. */
+    /* Load saved credentials. If none, go straight to portal. */
     wifi_credential_t nets[NVS_MAX_NETWORKS];
-    int count = 0;
-    if (nvs_config_load_networks(nets, &count) == ESP_OK && count > 0) {
-        ESP_LOGI(TAG, "Found %d known network(s) — trying each in order", count);
-        for (int i = 0; i < count; i++) {
-            ESP_LOGI(TAG, "Trying network %d/%d: '%s'", i + 1, count, nets[i].ssid);
-            if (wifi_manager_connect(nets[i].ssid, nets[i].password)) {
-                break;  /* connected — stop trying */
+    int net_count = 0;
+    if (nvs_config_load_networks(nets, &net_count) != ESP_OK || net_count == 0) {
+        ESP_LOGI(TAG, "No known networks — starting portal immediately");
+        return;
+    }
+
+    ESP_LOGI(TAG, "%d known network(s) saved — scanning before connecting", net_count);
+
+    /*
+     * Scan-before-connect: only attempt networks visible in the current scan.
+     * This avoids broadcasting credentials to access points that are not present.
+     * Retry the scan up to SCAN_MAX_ATTEMPTS times with SCAN_RETRY_DELAY_MS delay.
+     */
+    #define SCAN_MAX_ATTEMPTS  3
+    #define SCAN_MAX_AP        20
+    #define SCAN_RETRY_DELAY_MS 5000
+
+    wifi_ap_record_t *ap_list = malloc(SCAN_MAX_AP * sizeof(wifi_ap_record_t));
+    if (!ap_list) {
+        ESP_LOGE(TAG, "Out of memory for scan buffer — skipping scan");
+        return;
+    }
+
+    bool connected = false;
+
+    for (int attempt = 1; attempt <= SCAN_MAX_ATTEMPTS && !connected; attempt++) {
+        ESP_LOGI(TAG, "Scan attempt %d/%d", attempt, SCAN_MAX_ATTEMPTS);
+
+        esp_wifi_scan_start(NULL, true);   /* blocking scan */
+
+        uint16_t ap_count = SCAN_MAX_AP;
+        esp_wifi_scan_get_ap_records(&ap_count, ap_list);
+        ESP_LOGI(TAG, "Found %d visible network(s)", ap_count);
+
+        /* Match visible networks against saved list, preserving saved order. */
+        for (int i = 0; i < net_count && !connected; i++) {
+            for (int j = 0; j < ap_count; j++) {
+                if (strcmp(nets[i].ssid, (char *)ap_list[j].ssid) == 0) {
+                    ESP_LOGI(TAG, "Match: '%s' (RSSI %d) — connecting",
+                             nets[i].ssid, ap_list[j].rssi);
+                    connected = wifi_manager_connect(nets[i].ssid, nets[i].password);
+                    break;
+                }
             }
         }
-    } else {
-        ESP_LOGI(TAG, "No known networks — waiting in AP mode");
+
+        if (!connected) {
+            ESP_LOGW(TAG, "No saved networks visible in scan");
+            if (attempt < SCAN_MAX_ATTEMPTS) {
+                ESP_LOGI(TAG, "Waiting %d s before next scan...", SCAN_RETRY_DELAY_MS / 1000);
+                vTaskDelay(pdMS_TO_TICKS(SCAN_RETRY_DELAY_MS));
+            }
+        }
     }
+
+    free(ap_list);
+
+    if (!connected) {
+        ESP_LOGW(TAG, "All scan attempts failed — portal will start");
+    }
+
+    #undef SCAN_MAX_ATTEMPTS
+    #undef SCAN_MAX_AP
+    #undef SCAN_RETRY_DELAY_MS
 }
 
 bool wifi_manager_is_connected(void)
