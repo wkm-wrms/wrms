@@ -15,11 +15,35 @@ void captive_portal_start(void);
 
 /**
  * @brief Stop the captive portal HTTP and DNS servers.
- *
- * Called once Wi-Fi association succeeds and the device transitions to the
- * CONNECTED state.
  */
 void captive_portal_stop(void);
+
+/**
+ * @brief Stop the DNS hijack server only, keeping the HTTP server running.
+ *
+ * Called after the device transitions to CONNECTED state so that the
+ * config page remains accessible at http://192.168.4.1/ for reconfiguration,
+ * but aggressive DNS capture is no longer active.
+ */
+void captive_portal_stop_dns(void);
+
+/**
+ * @brief Start the HTTP config server only (no DNS hijack).
+ *
+ * Used when the device is already connected and just needs to expose the
+ * reconfiguration page.  Has no effect if the server is already running.
+ */
+void captive_portal_start_reconfig(void);
+
+/**
+ * @brief Return true if the HTTP config server is currently running.
+ */
+bool captive_portal_is_running(void);
+
+/**
+ * @brief Clear the configured flag after main.c has consumed it.
+ */
+void captive_portal_clear_configured(void);
 
 /**
  * @brief Return the last diagnostic error code produced during a portal

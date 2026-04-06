@@ -120,21 +120,33 @@ static const char *PORTAL_HTML_HEAD_FMT =
     "</style></head><body>"
     "<h2>%s — Setup</h2><form method='POST' action='/connect'>";
 
-static const char *PORTAL_HTML_FOOT =
-    "<label>API URL<input name='url' placeholder='http://192.168.1.10:8000/api/buzzer' required></label>"
-    "<label>Timezone (POSIX)<input name='tz' value='CET-1CEST,M3.5.0,M10.5.0/3'></label>"
-    "<button type='submit'>Connect</button>"
-    "</form></body></html>";
+/* Footer format: %s = current api_url, %s = current tz */
+static const char *PORTAL_HTML_FOOT_FMT =
+    "<label>API URL"
+      "<input name='url' value='%s' placeholder='http://192.168.1.10:8000/api/buzzer' required>"
+    "</label>"
+    "<label>Timezone (POSIX)<input name='tz' value='%s'></label>"
+    "<button type='submit'>Save</button>"
+    "</form>"
+    "<hr style='border-color:#333;margin-top:24px'>"
+    "<form method='POST' action='/clear-networks'"
+      " onsubmit=\"return confirm('Clear all saved Wi-Fi networks?')\">"
+      "<button type='submit'"
+        " style='width:100%;padding:10px;background:#c0392b;color:#fff;"
+        "font-weight:bold;border:none;border-radius:6px;cursor:pointer;'>"
+        "Clear saved networks"
+      "</button>"
+    "</form>"
+    "<p style='color:#888;font-size:.8em;margin-top:16px'>"
+      "Leave Wi-Fi fields empty to keep the current connection."
+    "</p>"
+    "</body></html>";
 
 /* ---- HTTP handlers ------------------------------------------------------- */
 
 static esp_err_t handle_root(httpd_req_t *req)
 {
-    /*
-     * All large buffers are heap-allocated to avoid stack overflow in the
-     * httpd task (default stack ~4 KB — insufficient for 4 KB page + scan list).
-     */
-    #define MAX_AP 16
+    #define MAX_AP    16
     #define PAGE_SIZE 4096
 
     wifi_ap_record_t *ap_list = malloc(MAX_AP * sizeof(wifi_ap_record_t));
@@ -144,6 +156,21 @@ static esp_err_t handle_root(httpd_req_t *req)
         free(page);
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Out of memory");
         return ESP_FAIL;
+    }
+
+    /* Read current config from NVS for pre-filling. */
+    char cur_url[NVS_URL_LEN] = "";
+    char cur_tz[NVS_TZ_LEN]   = "CET-1CEST,M3.5.0,M10.5.0/3";
+    nvs_config_get_api_url(cur_url, sizeof(cur_url));
+    nvs_config_get_timezone(cur_tz, sizeof(cur_tz));
+
+    /* Determine currently connected SSID (empty string if not connected). */
+    char cur_ssid[33] = "";
+    if (wifi_manager_is_connected()) {
+        wifi_ap_record_t sta_ap = {};
+        if (esp_wifi_sta_get_ap_info(&sta_ap) == ESP_OK) {
+            strncpy(cur_ssid, (char *)sta_ap.ssid, sizeof(cur_ssid) - 1);
+        }
     }
 
     /* Scan for nearby SSIDs. */
@@ -157,16 +184,20 @@ static esp_err_t handle_root(httpd_req_t *req)
     int n = 0;
     n += snprintf(page + n, PAGE_SIZE - n, PORTAL_HTML_HEAD_FMT, ap_ssid, ap_ssid);
 
-    /* SSID select list. */
+    /* SSID select — mark currently connected SSID as selected. */
     n += snprintf(page + n, PAGE_SIZE - n,
-                  "<label>Wi-Fi Network<select name='ssid'>");
+                  "<label>Wi-Fi Network (leave empty to keep current)"
+                  "<select name='ssid'>"
+                  "<option value=''>— keep current —</option>");
     for (int i = 0; i < ap_count; i++) {
+        const char *sel = (strcmp((char *)ap_list[i].ssid, cur_ssid) == 0) ? " selected" : "";
         n += snprintf(page + n, PAGE_SIZE - n,
-                      "<option>%s</option>", (char *)ap_list[i].ssid);
+                      "<option%s>%s</option>", sel, (char *)ap_list[i].ssid);
     }
     n += snprintf(page + n, PAGE_SIZE - n, "</select></label>");
     n += snprintf(page + n, PAGE_SIZE - n,
-                  "<label>Password<input name='pass' type='password'></label>");
+                  "<label>Password<input name='pass' type='password'"
+                  " placeholder='leave empty to keep current'></label>");
 
     /* Diagnostic error from previous attempt. */
     if (s_last_error[0] != '\0') {
@@ -174,7 +205,7 @@ static esp_err_t handle_root(httpd_req_t *req)
                       "<p class='err'>Error: %s</p>", s_last_error);
     }
 
-    n += snprintf(page + n, PAGE_SIZE - n, "%s", PORTAL_HTML_FOOT);
+    n += snprintf(page + n, PAGE_SIZE - n, PORTAL_HTML_FOOT_FMT, cur_url, cur_tz);
 
     httpd_resp_set_type(req, "text/html");
     httpd_resp_send(req, page, n);
@@ -245,11 +276,23 @@ static esp_err_t handle_connect(httpd_req_t *req)
     free(body);
     body = NULL;
 
-    /* Attempt Wi-Fi connection. */
-    bool connected = wifi_manager_connect(ssid, pass);
-    if (!connected) {
-        captive_portal_set_error("WIFI_AUTH_FAILED");
-        buzzer_gpio_error_beep();
+    /*
+     * Wi-Fi step: only reconnect when the user supplied a new SSID.
+     * Leaving the SSID field empty means "keep the current connection".
+     */
+    if (ssid[0] != '\0') {
+        bool connected = wifi_manager_connect(ssid, pass);
+        if (!connected) {
+            captive_portal_set_error("WIFI_AUTH_FAILED");
+            buzzer_gpio_error_beep();
+            httpd_resp_set_status(req, "302 Found");
+            httpd_resp_set_hdr(req, "Location", "/");
+            httpd_resp_send(req, NULL, 0);
+            return ESP_OK;
+        }
+        nvs_config_save_network(ssid, pass);
+    } else if (!wifi_manager_is_connected()) {
+        captive_portal_set_error("WIFI_NOT_FOUND");
         httpd_resp_set_status(req, "302 Found");
         httpd_resp_set_hdr(req, "Location", "/");
         httpd_resp_send(req, NULL, 0);
@@ -267,19 +310,20 @@ static esp_err_t handle_connect(httpd_req_t *req)
         return ESP_OK;
     }
 
-    /* NTP sync. */
-    bool synced = ntp_sync_init();
-    if (!synced) {
-        captive_portal_set_error("NTP_FAILED");
-        buzzer_gpio_error_beep();
-        httpd_resp_set_status(req, "302 Found");
-        httpd_resp_set_hdr(req, "Location", "/");
-        httpd_resp_send(req, NULL, 0);
-        return ESP_OK;
+    /* NTP sync (no-op if already synced). */
+    if (!ntp_sync_is_synced()) {
+        bool synced = ntp_sync_init();
+        if (!synced) {
+            captive_portal_set_error("NTP_FAILED");
+            buzzer_gpio_error_beep();
+            httpd_resp_set_status(req, "302 Found");
+            httpd_resp_set_hdr(req, "Location", "/");
+            httpd_resp_send(req, NULL, 0);
+            return ESP_OK;
+        }
     }
 
     /* Persist configuration. */
-    nvs_config_save_network(ssid, pass);
     nvs_config_set_api_url(url);
     if (tz[0]) nvs_config_set_timezone(tz);
     s_last_error[0] = '\0';
@@ -288,21 +332,30 @@ static esp_err_t handle_connect(httpd_req_t *req)
     httpd_resp_sendstr(req,
         "<html><body style='background:#111;color:#2ecc71;font-family:sans-serif;"
         "display:flex;align-items:center;justify-content:center;height:100vh;'>"
-        "<h2>Connected! Buzzer is now active.</h2></body></html>");
+        "<h2>Saved! Buzzer is active.</h2>"
+        "<p style='color:#aaa'><a href='/' style='color:#00d4ff'>Back to config</a></p>"
+        "</body></html>");
 
     /*
-     * Signal main.c that full setup is complete (WiFi + API + NTP + NVS).
-     * main.c polls captive_portal_is_configured() and will now exit its wait
-     * loop. Set the flag BEFORE stopping the portal so there is no window
-     * where the flag is true but the servers are still running.
+     * Signal main.c that configuration changed. The portal keeps running so
+     * the user can return to / and reconfigure again at any time.
+     * main.c clears this flag after reloading the URL from NVS.
      */
     s_configured = true;
 
-    /* Transition to CONNECTED state after response is sent. */
-    vTaskDelay(pdMS_TO_TICKS(1000));
-    captive_portal_stop();
-    led_rgb_set(LED_STATE_GREEN);
+    return ESP_OK;
+}
 
+static esp_err_t handle_clear_networks(httpd_req_t *req)
+{
+    nvs_config_clear_networks();
+    httpd_resp_set_type(req, "text/html");
+    httpd_resp_sendstr(req,
+        "<html><body style='background:#111;color:#2ecc71;font-family:sans-serif;"
+        "display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;'>"
+        "<h2>Saved networks cleared.</h2>"
+        "<p style='color:#aaa'><a href='/' style='color:#00d4ff'>Back to config</a></p>"
+        "</body></html>");
     return ESP_OK;
 }
 
@@ -321,6 +374,7 @@ void captive_portal_start(void)
 {
     s_configured = false;   /* reset for this configuration attempt */
     s_dns_sock   = -1;
+    wifi_manager_set_reconnect(false);  /* suppress background reconnect while portal runs */
     httpd_config_t cfg = HTTPD_DEFAULT_CONFIG();
     cfg.uri_match_fn = httpd_uri_match_wildcard;
     cfg.stack_size = 16384;  /* esp_http_client inside handle_connect needs deep stack */
@@ -330,11 +384,13 @@ void captive_portal_start(void)
         return;
     }
 
-    httpd_uri_t root    = {"/",        HTTP_GET,  handle_root,     NULL};
-    httpd_uri_t connect = {"/connect", HTTP_POST, handle_connect,  NULL};
-    httpd_uri_t redir   = {"/*",       HTTP_GET,  handle_redirect, NULL};
+    httpd_uri_t root          = {"/",               HTTP_GET,  handle_root,           NULL};
+    httpd_uri_t connect       = {"/connect",        HTTP_POST, handle_connect,         NULL};
+    httpd_uri_t clear_nets    = {"/clear-networks", HTTP_POST, handle_clear_networks,  NULL};
+    httpd_uri_t redir         = {"/*",              HTTP_GET,  handle_redirect,        NULL};
     httpd_register_uri_handler(s_server, &root);
     httpd_register_uri_handler(s_server, &connect);
+    httpd_register_uri_handler(s_server, &clear_nets);
     httpd_register_uri_handler(s_server, &redir);
 
     xTaskCreate(dns_server_task, "dns_srv", 4096, NULL, 5, &s_dns_task);
@@ -368,6 +424,7 @@ void captive_portal_stop(void)
         s_dns_task = NULL;
     }
 
+    wifi_manager_set_reconnect(true);   /* re-enable auto-reconnect after portal stops */
     ESP_LOGI(TAG, "Captive portal stopped");
 }
 
@@ -386,4 +443,55 @@ void captive_portal_set_error(const char *err)
 bool captive_portal_is_configured(void)
 {
     return s_configured;
+}
+
+void captive_portal_stop_dns(void)
+{
+    if (s_dns_sock >= 0) {
+        shutdown(s_dns_sock, SHUT_RDWR);
+        for (int i = 0; i < 10 && s_dns_sock >= 0; i++) {
+            vTaskDelay(pdMS_TO_TICKS(50));
+        }
+    }
+    if (s_dns_task) {
+        vTaskDelete(s_dns_task);
+        s_dns_task = NULL;
+    }
+    ESP_LOGI(TAG, "DNS hijack stopped");
+}
+
+void captive_portal_start_reconfig(void)
+{
+    if (s_server != NULL) return;  /* already running — nothing to do */
+    wifi_manager_set_reconnect(false);  /* suppress background reconnect while portal runs */
+
+    httpd_config_t cfg = HTTPD_DEFAULT_CONFIG();
+    cfg.uri_match_fn = httpd_uri_match_wildcard;
+    cfg.stack_size = 16384;
+
+    if (httpd_start(&s_server, &cfg) != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to start HTTP server (reconfig)");
+        return;
+    }
+
+    httpd_uri_t root       = {"/",               HTTP_GET,  handle_root,          NULL};
+    httpd_uri_t connect    = {"/connect",        HTTP_POST, handle_connect,        NULL};
+    httpd_uri_t clear_nets = {"/clear-networks", HTTP_POST, handle_clear_networks, NULL};
+    httpd_uri_t redir      = {"/*",              HTTP_GET,  handle_redirect,       NULL};
+    httpd_register_uri_handler(s_server, &root);
+    httpd_register_uri_handler(s_server, &connect);
+    httpd_register_uri_handler(s_server, &clear_nets);
+    httpd_register_uri_handler(s_server, &redir);
+
+    ESP_LOGI(TAG, "Config HTTP server started (no DNS)");
+}
+
+bool captive_portal_is_running(void)
+{
+    return s_server != NULL;
+}
+
+void captive_portal_clear_configured(void)
+{
+    s_configured = false;
 }

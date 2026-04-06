@@ -44,3 +44,12 @@ void wifi_manager_get_ip(char *buf, size_t len);
  * device's base MAC address in uppercase hex. Unique per device.
  */
 const char *wifi_manager_get_ap_ssid(void);
+
+/**
+ * @brief Enable or disable automatic STA reconnection on disconnect.
+ *
+ * Disable while the captive portal is running to avoid background reconnect
+ * attempts interfering with the HTTP server and WiFi scan.
+ * Re-enable after the portal stops.
+ */
+void wifi_manager_set_reconnect(bool enabled);

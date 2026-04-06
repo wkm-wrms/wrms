@@ -42,6 +42,13 @@ static void connected_loop(const char *api_url)
                 led_rgb_set(LED_STATE_RED);
                 return;
             }
+
+            /* Detect portal reconfiguration (user changed API URL via web form). */
+            if (captive_portal_is_configured()) {
+                ESP_LOGI(TAG, "Portal reconfiguration detected — reloading API URL");
+                captive_portal_clear_configured();
+                return;
+            }
         }
 
         /* Periodic NTP re-sync. */
@@ -107,10 +114,9 @@ void app_main(void)
         if (!wifi_manager_is_connected() || !has_url) {
             /*
              * DISCONNECTED / not configured:
-             * Start captive portal and block until handle_connect completes
-             * the full setup sequence (WiFi + API validation + NTP + NVS save).
-             * The portal stops itself; we must NOT call captive_portal_stop()
-             * here to avoid a double-stop and DNS port collision.
+             * Start full portal (HTTP + DNS hijack) and block until
+             * handle_connect completes the setup sequence.
+             * After success, stop DNS only — HTTP stays up for reconfig.
              */
             ESP_LOGI(TAG, "State: DISCONNECTED — starting captive portal");
             led_rgb_set(LED_STATE_RED);
@@ -120,9 +126,18 @@ void app_main(void)
                 vTaskDelay(pdMS_TO_TICKS(500));
             }
 
+            captive_portal_stop_dns();       /* DNS no longer needed */
+            captive_portal_clear_configured(); /* arm for next reconfiguration */
+
             /* Re-read URL written by handle_connect. */
             nvs_config_get_api_url(api_url, sizeof(api_url));
             ESP_LOGI(TAG, "Portal configuration complete — API: %s", api_url);
+        } else {
+            /*
+             * Already connected and configured: start HTTP-only portal so the
+             * user can change the API URL at any time via http://192.168.4.1/
+             */
+            captive_portal_start_reconfig();
         }
 
         /* NTP should already be synced by handle_connect, but re-init if not. */
@@ -133,6 +148,11 @@ void app_main(void)
 
         connected_loop(api_url);
 
-        /* If connected_loop returns, Wi-Fi dropped — restart from top. */
+        /*
+         * connected_loop returns on Wi-Fi drop or portal reconfiguration.
+         * Stop the portal fully before restarting the main loop so that
+         * captive_portal_start() can bind DNS port 53 cleanly on the next pass.
+         */
+        captive_portal_stop();
     }
 }

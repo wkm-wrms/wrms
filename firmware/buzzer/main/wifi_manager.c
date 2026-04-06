@@ -31,6 +31,7 @@ static EventGroupHandle_t s_wifi_event_group;
 static bool s_connected           = false;
 static int  s_retry_count         = 0;
 static bool s_intentional_disc    = false;  /* set before deliberate disconnect */
+static bool s_reconnect_enabled   = true;   /* cleared while captive portal runs */
 static char s_ap_ssid[AP_SSID_LEN] = {};
 #define MAX_RETRY 3
 
@@ -46,7 +47,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t base,
              * completion without triggering auto-retry. */
             s_intentional_disc = false;
             xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
-        } else if (s_retry_count < MAX_RETRY) {
+        } else if (s_reconnect_enabled && s_retry_count < MAX_RETRY) {
             esp_wifi_connect();
             s_retry_count++;
             ESP_LOGW(TAG, "Retry Wi-Fi connection (%d/%d)", s_retry_count, MAX_RETRY);
@@ -108,13 +109,17 @@ void wifi_manager_init(void)
 
     ESP_LOGI(TAG, "AP started: SSID=%s (no password)", s_ap_ssid);
 
-    /* Attempt connection to first known network. */
+    /* Attempt connection to each known network in order until one succeeds. */
     wifi_credential_t nets[NVS_MAX_NETWORKS];
     int count = 0;
     if (nvs_config_load_networks(nets, &count) == ESP_OK && count > 0) {
-        ESP_LOGI(TAG, "Found %d known network(s), attempting connection to '%s'",
-                 count, nets[0].ssid);
-        wifi_manager_connect(nets[0].ssid, nets[0].password);
+        ESP_LOGI(TAG, "Found %d known network(s) — trying each in order", count);
+        for (int i = 0; i < count; i++) {
+            ESP_LOGI(TAG, "Trying network %d/%d: '%s'", i + 1, count, nets[i].ssid);
+            if (wifi_manager_connect(nets[i].ssid, nets[i].password)) {
+                break;  /* connected — stop trying */
+            }
+        }
     } else {
         ESP_LOGI(TAG, "No known networks — waiting in AP mode");
     }
@@ -168,6 +173,12 @@ bool wifi_manager_connect(const char *ssid, const char *password)
     }
     ESP_LOGE(TAG, "Failed to connect to '%s'", ssid);
     return false;
+}
+
+void wifi_manager_set_reconnect(bool enabled)
+{
+    s_reconnect_enabled = enabled;
+    ESP_LOGI(TAG, "Auto-reconnect %s", enabled ? "enabled" : "disabled");
 }
 
 const char *wifi_manager_get_ap_ssid(void)

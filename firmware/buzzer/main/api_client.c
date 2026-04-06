@@ -115,11 +115,12 @@ bool api_client_fetch(const char *url, api_response_t *out)
     http_buf_t acc = { .buf = buf, .len = 0, .cap = RESPONSE_BUF_LEN };
 
     esp_http_client_config_t cfg = {
-        .url            = url,
-        .timeout_ms     = 5000,
-        .event_handler  = http_event_handler,
-        .user_data      = &acc,
-        .method         = HTTP_METHOD_GET,
+        .url        = url,
+        .timeout_ms = 5000,
+        .event_handler = http_event_handler,
+        .user_data  = &acc,
+        .method     = HTTP_METHOD_GET,
+        /* TLS cert verification disabled via CONFIG_ESP_TLS_SKIP_SERVER_CERT_VERIFY=y */
     };
 
     esp_http_client_handle_t client = esp_http_client_init(&cfg);

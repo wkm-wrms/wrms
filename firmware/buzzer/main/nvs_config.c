@@ -115,6 +115,31 @@ esp_err_t nvs_config_save_network(const char *ssid, const char *password)
     return err;
 }
 
+esp_err_t nvs_config_clear_networks(void)
+{
+    nvs_handle_t h;
+    ESP_ERROR_CHECK(nvs_open(NVS_NAMESPACE, NVS_READWRITE, &h));
+
+    /* Load current count so we know how many ssid_N / pass_N keys to erase. */
+    uint8_t n = 0;
+    nvs_get_u8(h, KEY_NET_COUNT, &n);
+    if (n > NVS_MAX_NETWORKS) n = NVS_MAX_NETWORKS;
+
+    for (int i = 0; i < n; i++) {
+        char key[16];
+        snprintf(key, sizeof(key), KEY_NET_SSID, i);
+        nvs_erase_key(h, key);
+        snprintf(key, sizeof(key), KEY_NET_PASS, i);
+        nvs_erase_key(h, key);
+    }
+    nvs_erase_key(h, KEY_NET_COUNT);
+
+    esp_err_t err = nvs_commit(h);
+    nvs_close(h);
+    ESP_LOGI(TAG, "All saved networks cleared (%d entries removed)", n);
+    return err;
+}
+
 /* ---- API URL ------------------------------------------------------------- */
 
 esp_err_t nvs_config_get_api_url(char *url, size_t buf_len)

@@ -75,3 +75,8 @@ esp_err_t nvs_config_get_timezone(char *tz, size_t buf_len);
  * @brief Persist the POSIX timezone string in NVS.
  */
 esp_err_t nvs_config_set_timezone(const char *tz);
+
+/**
+ * @brief Erase all saved Wi-Fi credentials from NVS.
+ */
+esp_err_t nvs_config_clear_networks(void);
