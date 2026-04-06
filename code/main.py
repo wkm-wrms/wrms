@@ -7,8 +7,6 @@ from fastapi.exceptions import HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-import uvicorn
-
 from session import Session, get_session, set_session
 from database import get_db
 from routers import api_router
@@ -35,7 +33,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         content={"status": "error", "message": exc.detail},
     )
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/public", StaticFiles(directory="public"), name="static")
 
 
 @app.middleware("http")
