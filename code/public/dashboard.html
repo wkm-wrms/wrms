@@ -429,14 +429,14 @@
 <body>
     <!-- Audio elements -->
     <audio id="startSound" preload="auto">
-        <source src="/static/sounds/start.mp3" type="audio/mpeg">
+        <source src="/public/sounds/start.mp3" type="audio/mpeg">
     </audio>
     <audio id="endSound" preload="auto">
-        <source src="/static/sounds/end.mp3" type="audio/mpeg">
+        <source src="/public/sounds/end.mp3" type="audio/mpeg">
     </audio>
     <!-- Silent audio used solely to unlock the browser autoplay policy -->
     <audio id="silentSound" preload="auto">
-        <source src="/static/sounds/silent.mp3" type="audio/mpeg">
+        <source src="/public/sounds/silent.mp3" type="audio/mpeg">
     </audio>
 
     <!-- Startup modal — must be dismissed before dashboard activates -->
@@ -458,7 +458,7 @@
     <div id="qr-widget"></div>
     <button id="audio-toggle" onclick="toggleAudio()" title="Przełącz dźwięk"></button>
 
-    <div id="logo"><img src="/static/logo.png" alt="Logo" /></div>
+    <div id="logo"><img src="/public/logo.png" alt="Logo" /></div>
     <div class="top-section">
         <div id="flight-number"></div>
         <div id="status-label">ŁADOWANIE...</div>
@@ -783,7 +783,7 @@
 
             if (id === 'groupsModal' && iframe) {
                 // 1. Ustawiamy źródło dopiero teraz
-                iframe.src = `/static/groups_view.html?v=${Date.now()}`;
+                iframe.src = `/public/groups_view.html?v=${Date.now()}`;
 
                 // 2. Czekamy, aż iframe się załaduje, zanim wyślemy sygnał odliczania
                 iframe.onload = () => {
@@ -876,7 +876,7 @@
         })();
     </script>
 
-    <script src="/static/js/qrcode.min.js"></script>
+    <script src="/public/js/qrcode.min.js"></script>
     <script>
         // QR code widget — generated from the session_id returned by /api/heat.
         // Displayed in the bottom-left corner for pilots to scan.
