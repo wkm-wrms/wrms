@@ -57,37 +57,37 @@ async def session_persistence_middleware(request, call_next):
 @app.get("/")
 async def serve_frontend():
     """Serves the main dashboard panel (Public View/Kiosk)."""
-    return FileResponse("static/dashboard.html")
+    return FileResponse("public/dashboard.html")
 
 
 @app.get("/index.html")
 async def serve_frontend2():
     """Alias for the home page."""
-    return FileResponse("static/dashboard.html")
+    return FileResponse("public/dashboard.html")
 
 
 @app.get("/display")
 async def serve_display_view():
     """Serves the public display view."""
-    return FileResponse("static/dashboard.html")
+    return FileResponse("public/dashboard.html")
 
 
 @app.get("/admin")
 async def serve_admin_view():
     """Serves the administrator panel."""
-    return FileResponse("static/session.html")
+    return FileResponse("public/session.html")
 
 
 @app.get("/pilots.html")
 async def serve_pilots_manager():
     """Serves the pilot management panel (loaded inside an iframe)."""
-    return FileResponse("static/pilots.html")
+    return FileResponse("public/pilots.html")
 
 
 @app.get("/backup.html")
 async def serve_backup_manager():
     """Serves the backup/restore panel (loaded inside an iframe)."""
-    return FileResponse("static/backup.html")
+    return FileResponse("public/backup.html")
 
 
 @app.get("/pilot/{session_id}")
@@ -115,13 +115,13 @@ async def serve_pilot_view(session_id: str):
                 "</body></html>"
             ),
         )
-    return FileResponse("static/pilot.html")
+    return FileResponse("public/pilot.html")
 
 
 @app.get("/favicon.ico")
 async def serve_favicon():
     """Serves the site icon."""
-    return FileResponse("static/wkm.ico")
+    return FileResponse("public/wkm.ico")
 
 
 class Main:  # pylint: disable=too-few-public-methods

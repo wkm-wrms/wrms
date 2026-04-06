@@ -22,8 +22,8 @@ jobs:
         # Akcja pobierze kod z gałęzi wybranej w menu "Use workflow from" na GitHubie
 
       - name: Utworzenie pliku z wersją
-        # Tworzy plik version.txt wewnątrz folderu 'code' z wpisanym przez Ciebie tagiem
-        run: echo "${{ inputs.deployment_tag }}" > code/public/version.txt
+
+        run: echo "${{ inputs.deployment_tag }}" > code/public/version
 
       - name: Wgrywanie zawartości folderu 'code' na serwer (SCP)
         uses: appleboy/scp-action@v0.1.7
