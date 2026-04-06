@@ -173,8 +173,7 @@ For a standalone (no PC) deployment, use any USB-C power bank or a 5 V USB adapt
 - AP name: `WKM-Buzzer-XXYYZZ` where `XXYYZZ` are the last 3 bytes of the device's base MAC address in uppercase hex (e.g. `WKM-Buzzer-A1B2C3`). Unique per device — allows multiple buzzers to operate in the same location without SSID collision.
 - DNS redirects all traffic to the captive portal IP (classic captive portal pattern).
 - LED: **fast blink** (onboard) / **Red solid** (external RGB). See section 2.2.
-- In the background: continuously scans for known networks and attempts connection.
-  If a known network appears, attempts login without interrupting the portal.
+- Background WiFi scanning/reconnection is **suspended** while the portal is active, to avoid interfering with the HTTP server stability.
 
 **Captive portal UI (simple HTML page served by ESP32):**
 1. List of discovered SSIDs (refreshable).
@@ -214,6 +213,25 @@ For a standalone (no PC) deployment, use any USB-C power bank or a 5 V USB adapt
 ---
 
 ## 4. Network and Persistence
+
+### 3.3 Factory Reset (BOOT button)
+
+**Trigger:** BOOT button (GPIO9 on DevKitC-1) held for **5 seconds**.
+
+**Behaviour:**
+- At **3 s** held: short error beep (warning — release to cancel).
+- At **5 s** held: two error beeps, then full NVS erase and device restart.
+- After restart: all saved networks, API URL and timezone are gone — device boots straight into captive portal (DNS + HTTP).
+
+**Use case:** switching between environments (dev / test / prod) without reflashing.
+The operator connects to the buzzer's AP, holds BOOT for 5 s, then configures the new API endpoint via the portal.
+
+> GPIO9 is the `BOOT` button physically present on the ESP32-C3 DevKitC-1 board.
+> No additional hardware is required.
+
+---
+
+### 4. Network and Persistence
 
 ### 4.1 Known Networks (NVS)
 Stored as a list of `{ssid, password}` pairs in NVS partition.

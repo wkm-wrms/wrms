@@ -5,6 +5,8 @@
 #include "freertos/queue.h"
 #include "esp_log.h"
 #include "esp_system.h"
+#include "driver/gpio.h"
+#include "nvs_flash.h"
 
 #include "nvs_config.h"
 #include "wifi_manager.h"
@@ -16,6 +18,65 @@
 #include "led_rgb.h"
 
 #define TAG "main"
+
+/* GPIO9 is the BOOT button on ESP32-C3 DevKitC-1 (active LOW, internal pull-up). */
+#define BOOT_BUTTON_GPIO    9
+#define HOLD_CLEAR_MS    5000   /* hold duration to trigger NVS wipe + restart */
+#define HOLD_WARN_MS     3000   /* beep warning at this point so user knows it's working */
+#define SAMPLE_MS          50   /* button polling interval */
+
+/* ---- BOOT button task ---------------------------------------------------- */
+
+/*
+ * Monitors the BOOT button. Holding it for HOLD_CLEAR_MS milliseconds
+ * erases all NVS configuration (saved networks, API URL, timezone) and
+ * restarts the device. The device will boot into captive portal mode.
+ *
+ * Feedback:
+ *   3 s held → short error beep (warning)
+ *   5 s held → two error beeps, then erase + restart
+ */
+static void boot_button_task(void *arg)
+{
+    gpio_config_t io = {
+        .pin_bit_mask = (1ULL << BOOT_BUTTON_GPIO),
+        .mode         = GPIO_MODE_INPUT,
+        .pull_up_en   = GPIO_PULLUP_ENABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type    = GPIO_INTR_DISABLE,
+    };
+    gpio_config(&io);
+
+    int  held_ms = 0;
+    bool warned  = false;
+
+    while (1) {
+        vTaskDelay(pdMS_TO_TICKS(SAMPLE_MS));
+
+        if (gpio_get_level(BOOT_BUTTON_GPIO) == 0) {
+            held_ms += SAMPLE_MS;
+
+            if (!warned && held_ms >= HOLD_WARN_MS) {
+                ESP_LOGW(TAG, "Boot button held 3s — release to cancel, keep holding to reset");
+                buzzer_gpio_error_beep();
+                warned = true;
+            }
+
+            if (held_ms >= HOLD_CLEAR_MS) {
+                ESP_LOGW(TAG, "Boot button held 5s — erasing NVS and restarting");
+                buzzer_gpio_error_beep();
+                vTaskDelay(pdMS_TO_TICKS(400));
+                buzzer_gpio_error_beep();
+                vTaskDelay(pdMS_TO_TICKS(600));
+                nvs_flash_erase();
+                esp_restart();
+            }
+        } else {
+            held_ms = 0;
+            warned  = false;
+        }
+    }
+}
 
 /* NTP re-sync period expressed in 100 ms ticks (= 60 min). */
 #define NTP_RESYNC_TICKS (3600 * 10)
@@ -166,6 +227,7 @@ void app_main(void)
     buzzer_gpio_init();
     led_rgb_init();
     alarm_scheduler_init();
+    xTaskCreate(boot_button_task, "boot_btn", 2048, NULL, 3, NULL);
 
     /* 2. Initialise NVS. */
     ESP_ERROR_CHECK(nvs_config_init());
