@@ -1,5 +1,5 @@
 name: Wdrozenie na MyDevil (FastAPI)
-
+run-name: tag: ${{ inputs.deployment_tag }}
 on:
   workflow_dispatch:
     inputs:
