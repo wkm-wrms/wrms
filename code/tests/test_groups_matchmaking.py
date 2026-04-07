@@ -270,3 +270,42 @@ class TestMovePilot:
             "pilot_id": pid, "to_group": 99, "to_channel": "R1"
         })
         assert resp.json()["status"] == "error"
+
+
+# ---------------------------------------------------------------------------
+# Regression: GET /api/groups public access + current_group_index field
+# Bug: groups_view.html called /api/session (admin-only) instead of /api/groups
+# ---------------------------------------------------------------------------
+
+class TestGroupsPublicEndpoint:
+
+    def test_get_groups_returns_current_group_index(self, new_session):
+        """GET /api/groups must include current_group_index for public schedule view."""
+        resp = client.get("/api/groups")
+        data = resp.json()
+        assert data["status"] == "ok"
+        assert "current_group_index" in data
+
+    def test_get_groups_current_group_index_is_none_before_start(self, new_session):
+        """current_group_index is None before the session starts (no heat running yet)."""
+        resp = client.get("/api/groups")
+        assert resp.json()["current_group_index"] is None
+
+    def test_get_groups_no_session_returns_error(self):
+        """Without an active session, /api/groups returns an error (no crash)."""
+        resp = client.get("/api/groups")
+        assert resp.json()["status"] == "error"
+
+    def test_get_groups_current_group_index_advances_after_rotation(self, new_session, make_pilot):
+        """current_group_index must increment after heat rotation (requires 2+ groups)."""
+        # 5 pilots → 2 groups so there is a next group to rotate into
+        for _ in range(5):
+            pid, _ = make_pilot()
+            client.post("/api/session/add_pilot", json={"pilot_id": pid, "vtx": "Analog"})
+        client.post("/api/groups/rebalance", json={})
+        client.post("/api/session/start")
+
+        before = client.get("/api/groups").json()["current_group_index"]
+        client.post("/api/session/skip_heat")
+        after = client.get("/api/groups").json()["current_group_index"]
+        assert after == before + 1

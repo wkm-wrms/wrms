@@ -21,11 +21,19 @@ db: RaceDatabase = get_db()
 
 @router.get("")
 async def get_session_groups():
-    """Retrieves all groups defined in the current session."""
+    """Retrieves all groups defined in the current session.
+
+    Returns groups list and current_group_index so public views
+    can highlight the active group without requiring admin auth.
+    """
     session = get_session()
     if session is None:
         return {"status": "error", "message": "No active session found."}
-    return {"status": "ok", "groups": session.groups}
+    return {
+        "status": "ok",
+        "groups": session.groups,
+        "current_group_index": session.current_group_index,
+    }
 
 
 @router.post("/rebalance")

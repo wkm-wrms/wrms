@@ -168,15 +168,15 @@
 
         async function loadGroups() {
             try {
-                const response = await fetch('/api/session');
+                const response = await fetch('/api/groups');
                 const data = await response.json();
-                if (data.status !== "ok" || !data.session.groups) {
+                if (data.status !== "ok" || !data.groups) {
                     document.getElementById('groups-body').innerHTML =
                         '<tr><td colspan="5" style="text-align:center; padding:40px;">Brak danych o grupach</td></tr>';
                     return;
                 }
-                const groups = data.session.groups;
-                const currentGroup = data.session.current_group_index;
+                const groups = data.groups;
+                const currentGroup = data.current_group_index;
                 const tbody = document.getElementById('groups-body');
 
                 const channels = ["R1", "R3", "R6", "R7"];
